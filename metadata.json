@@ -1,0 +1,5 @@
+{
+  "name": "EliteDispatch",
+  "description": "A modern, mobile-first chauffeur dispatch platform with AI-powered driver assignment and WhatsApp integration.",
+  "requestFramePermissions": []
+}
