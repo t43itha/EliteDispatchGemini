@@ -677,7 +677,7 @@ const App: React.FC = () => {
         </button>
         <button onClick={() => setCurrentView('drivers')} className={`flex flex-col items-center gap-1 ${currentView === 'drivers' ? 'text-brand-600' : 'text-slate-400'}`}>
             <Users className={`w-6 h-6 ${currentView === 'drivers' ? 'fill-brand-100' : ''}`} />
-            <span className="text-[10px] font-bold">Fleet</span>
+            <span className="text-[10px] font-bold">Drivers</span>
         </button>
       </div>
 
