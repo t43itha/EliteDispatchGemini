@@ -42,26 +42,28 @@ import { CancelModal } from './components/CancelModal';
 import { BookingWidget } from './components/BookingWidget';
 import { ServiceModal } from './components/ServiceModal';
 import { DriverModal } from './components/DriverModal';
+import { LandingPage } from './components/LandingPage';
 
 // --- Layout Components ---
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick: () => void }) => (
   <button 
     onClick={onClick}
-    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-300 group ${
       active 
-      ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20' 
-      : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+      ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/30 font-semibold' 
+      : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 font-medium'
     }`}
   >
-    <Icon className={`w-5 h-5 ${active ? 'text-brand-400' : ''}`} />
-    <span className="font-medium">{label}</span>
+    <Icon className={`w-5 h-5 transition-transform group-hover:scale-110 ${active ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`} />
+    <span>{label}</span>
   </button>
 );
 
 // --- Main App Component ---
 
 const App: React.FC = () => {
+  const [showLanding, setShowLanding] = useState(true);
   const [currentView, setCurrentView] = useState<'dashboard' | 'bookings' | 'drivers' | 'services'>('dashboard');
   const [bookings, setBookings] = useState<Booking[]>(MOCK_BOOKINGS);
   const [drivers, setDrivers] = useState<Driver[]>(MOCK_DRIVERS);
@@ -98,9 +100,6 @@ const App: React.FC = () => {
 
   const handleCreateBooking = (newBooking: Booking) => {
     setBookings(prev => [newBooking, ...prev]);
-    if (isWidgetOpen) {
-        // If created via widget, maybe show a success toast or similar (omitted for brevity)
-    }
   };
 
   const handleCreateService = (newService: ServiceRecord) => {
@@ -142,12 +141,16 @@ const App: React.FC = () => {
     setBookingToCancel(null);
   };
 
+  if (showLanding) {
+    return <LandingPage onEnterApp={() => setShowLanding(false)} />;
+  }
+
   const renderDashboard = () => (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="space-y-8 animate-in fade-in duration-700">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
         <StatCard 
           title="Total Revenue" 
-          value={`$${stats.revenue.toFixed(0)}`} 
+          value={`£${stats.revenue.toLocaleString()}`} 
           icon={DollarSign} 
           color="text-emerald-600"
           trend="+12% vs last week"
@@ -156,13 +159,13 @@ const App: React.FC = () => {
           title="Active Jobs" 
           value={stats.activeJobs} 
           icon={Car} 
-          color="text-blue-600"
+          color="text-brand-600"
         />
         <StatCard 
           title="Pending Dispatch" 
           value={stats.pendingDispatch} 
           icon={Clock} 
-          color="text-orange-500"
+          color="text-amber-600"
         />
         <StatCard 
           title="Completed" 
@@ -173,8 +176,8 @@ const App: React.FC = () => {
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <h3 className="font-bold text-lg text-slate-900 mb-4">Revenue Overview</h3>
+        <div className="md:col-span-2 bg-surface p-8 rounded-3xl shadow-card border border-slate-100/50">
+          <h3 className="font-bold text-xl text-slate-900 mb-6 tracking-tight">Revenue Overview</h3>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
@@ -185,106 +188,116 @@ const App: React.FC = () => {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} tickFormatter={(val) => `$${val}`} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12, fontWeight: 500}} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12, fontWeight: 500}} tickFormatter={(val) => `£${val}`} dx={-10} />
                 <Tooltip 
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px -5px rgba(0, 0, 0, 0.1)', padding: '12px' }}
+                  cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }}
                 />
-                <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
+                <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={4} fillOpacity={1} fill="url(#colorRevenue)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-bold text-lg text-slate-900">Drivers Status</h3>
-            <span className="text-xs font-medium text-brand-600 bg-brand-50 px-2 py-1 rounded-full">Live</span>
+        <div className="bg-surface p-6 rounded-3xl shadow-card border border-slate-100/50">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="font-bold text-xl text-slate-900 tracking-tight">Drivers Status</h3>
+            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">Live</span>
           </div>
-          <div className="space-y-4">
-             {drivers.map(driver => (
-               <div key={driver.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
-                 <div className="flex items-center gap-3">
-                   <div className={`w-2 h-2 rounded-full ${
-                     driver.status === 'AVAILABLE' ? 'bg-emerald-500' : 
-                     driver.status === 'BUSY' ? 'bg-orange-400' : 'bg-slate-400'
-                   }`} />
+          <div className="space-y-3">
+             {drivers.slice(0, 5).map(driver => (
+               <div key={driver.id} className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-2xl transition-colors cursor-default">
+                 <div className="flex items-center gap-4">
+                   <div className="relative">
+                        <div className={`w-3 h-3 rounded-full border-2 border-white ${
+                            driver.status === 'AVAILABLE' ? 'bg-emerald-500' : 
+                            driver.status === 'BUSY' ? 'bg-amber-400' : 'bg-slate-400'
+                        }`} />
+                   </div>
                    <div>
                      <p className="text-sm font-bold text-slate-900">{driver.name}</p>
-                     <p className="text-xs text-slate-500">{driver.vehicle}</p>
+                     <p className="text-xs text-slate-500 font-medium">{driver.vehicle}</p>
                    </div>
                  </div>
-                 <span className="text-xs font-medium text-slate-600">{driver.status}</span>
+                 <span className={`text-[10px] font-bold px-2 py-1 rounded-lg uppercase tracking-wide ${
+                    driver.status === 'AVAILABLE' ? 'bg-emerald-50 text-emerald-600' :
+                    driver.status === 'BUSY' ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-500'
+                 }`}>
+                    {driver.status.replace('_', ' ')}
+                 </span>
                </div>
              ))}
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-          <h3 className="font-bold text-lg text-slate-900">Recent Bookings</h3>
-          <button onClick={() => setCurrentView('bookings')} className="text-sm text-brand-600 font-medium hover:text-brand-700">View All</button>
+      <div className="bg-surface rounded-3xl shadow-card border border-slate-100/50 overflow-hidden">
+        <div className="p-6 border-b border-slate-50 flex justify-between items-center">
+          <h3 className="font-bold text-xl text-slate-900 tracking-tight">Recent Bookings</h3>
+          <button onClick={() => setCurrentView('bookings')} className="text-sm text-brand-600 font-bold hover:text-brand-700 hover:text-brand-700 hover:underline">View All</button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-slate-500">
+            <thead className="bg-slate-50/50 text-slate-400 uppercase tracking-wider text-xs">
               <tr>
-                <th className="px-6 py-3 font-medium">Customer</th>
-                <th className="px-6 py-3 font-medium">Route</th>
-                <th className="px-6 py-3 font-medium">Time</th>
-                <th className="px-6 py-3 font-medium">Details</th>
-                <th className="px-6 py-3 font-medium">Status</th>
-                <th className="px-6 py-3 font-medium">Driver</th>
+                <th className="px-8 py-4 font-bold">Customer</th>
+                <th className="px-8 py-4 font-bold">Route</th>
+                <th className="px-8 py-4 font-bold">Time</th>
+                <th className="px-8 py-4 font-bold">Details</th>
+                <th className="px-8 py-4 font-bold">Status</th>
+                <th className="px-8 py-4 font-bold">Driver</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-50">
               {bookings.slice(0, 5).map(booking => {
                 const assignedDriver = drivers.find(d => d.id === booking.driverId);
                 return (
-                  <tr key={booking.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-slate-900">
+                  <tr key={booking.id} className="hover:bg-slate-50/80 transition-colors group">
+                    <td className="px-8 py-5 font-bold text-slate-800">
                         {booking.customerName}
-                        {booking.paymentStatus === PaymentStatus.PAID && <span className="ml-2 text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">PAID</span>}
-                        {booking.paymentStatus === PaymentStatus.INVOICED && <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">XERO</span>}
-                    </td>
-                    <td className="px-6 py-4 text-slate-500 max-w-[200px] truncate">
-                      <div className="flex flex-col">
-                        <span className="flex items-center gap-1"><span className="w-1 h-1 bg-green-500 rounded-full"></span>{booking.pickupLocation}</span>
-                        <span className="flex items-center gap-1"><span className="w-1 h-1 bg-red-500 rounded-full"></span>{booking.dropoffLocation}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-slate-500">
-                      {new Date(booking.pickupTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                    </td>
-                    <td className="px-6 py-4 text-slate-500">
-                        <div className="flex flex-col">
-                            <span className="font-medium">{booking.vehicleClass || 'Standard'}</span>
-                            <span className="text-xs">${booking.price}</span>
+                        <div className="flex gap-1 mt-1">
+                            {booking.paymentStatus === PaymentStatus.PAID && <span className="text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-md border border-emerald-100">PAID</span>}
+                            {booking.paymentStatus === PaymentStatus.INVOICED && <span className="text-[10px] bg-brand-50 text-brand-600 px-1.5 py-0.5 rounded-md border border-brand-100">XERO</span>}
                         </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                        booking.status === 'PENDING' ? 'bg-orange-100 text-orange-600' :
-                        booking.status === 'ASSIGNED' ? 'bg-blue-100 text-blue-600' :
-                        booking.status === 'CANCELLED' ? 'bg-slate-100 text-slate-500' :
-                        'bg-emerald-100 text-emerald-600'
+                    <td className="px-8 py-5 text-slate-500 max-w-[250px]">
+                      <div className="flex flex-col gap-1">
+                        <span className="flex items-center gap-2 text-xs font-medium"><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>{booking.pickupLocation}</span>
+                        <span className="flex items-center gap-2 text-xs font-medium"><span className="w-1.5 h-1.5 bg-red-400 rounded-full"></span>{booking.dropoffLocation}</span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-5 text-slate-600 font-medium">
+                      {new Date(booking.pickupTime).toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'})}
+                    </td>
+                    <td className="px-8 py-5 text-slate-600">
+                        <div className="flex flex-col">
+                            <span className="font-bold text-xs uppercase tracking-wide text-slate-400">{booking.vehicleClass || 'Standard'}</span>
+                            <span className="font-bold text-slate-900">£{booking.price}</span>
+                        </div>
+                    </td>
+                    <td className="px-8 py-5">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold shadow-sm border ${
+                        booking.status === 'PENDING' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                        booking.status === 'ASSIGNED' ? 'bg-brand-50 text-brand-600 border-brand-100' :
+                        booking.status === 'CANCELLED' ? 'bg-slate-50 text-slate-500 border-slate-100' :
+                        'bg-emerald-50 text-emerald-600 border-emerald-100'
                       }`}>
                         {booking.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-slate-500">
+                    <td className="px-8 py-5 text-slate-500">
                       {booking.status === BookingStatus.CANCELLED ? (
-                        <span className="text-xs text-slate-400 italic">Cancelled</span>
+                        <span className="text-xs text-slate-400 font-medium italic">Cancelled</span>
                       ) : assignedDriver ? (
                         <span className="flex items-center gap-2">
-                          <span className="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center text-[10px] font-bold">{assignedDriver.name[0]}</span>
-                          {assignedDriver.name.split(' ')[0]}
+                          <div className="w-7 h-7 bg-slate-100 rounded-full flex items-center justify-center text-[10px] font-bold text-slate-600 border border-slate-200">{assignedDriver.name[0]}</div>
+                          <span className="font-semibold text-slate-700 text-sm">{assignedDriver.name.split(' ')[0]}</span>
                         </span>
                       ) : (
                         <button 
                           onClick={() => setSelectedBookingForDispatch(booking)}
-                          className="text-xs bg-slate-900 text-white px-3 py-1.5 rounded-lg hover:bg-slate-800"
+                          className="text-xs font-bold bg-slate-900 text-white px-4 py-2 rounded-xl hover:bg-slate-800 shadow-md shadow-slate-900/20 transition-all active:scale-95"
                         >
                           Assign
                         </button>
@@ -301,41 +314,46 @@ const App: React.FC = () => {
   );
 
   const renderBookingsList = () => (
-    <div className="space-y-4 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center mb-2">
-        <h2 className="text-2xl font-bold text-slate-900">Dispatch Board</h2>
-        <div className="flex gap-2">
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex justify-between items-center">
+        <div>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight">Dispatch Board</h2>
+            <p className="text-slate-500 font-medium mt-1">Manage active jobs and assignments</p>
+        </div>
+        <div className="flex gap-3">
            <div className="relative">
-             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-             <input type="text" placeholder="Search bookings..." className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+             <input type="text" placeholder="Search..." className="pl-10 pr-4 py-3 bg-white border border-slate-100 rounded-2xl text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 w-64" />
            </div>
         </div>
       </div>
       
-      <div className="grid gap-4">
+      <div className="grid gap-5">
         {bookings.map(booking => {
           const assignedDriver = drivers.find(d => d.id === booking.driverId);
           const isCancellable = booking.status === BookingStatus.PENDING || booking.status === BookingStatus.ASSIGNED;
 
           return (
-            <div key={booking.id} className={`bg-white p-5 rounded-xl border transition-shadow flex flex-col md:flex-row gap-4 md:items-center justify-between group relative overflow-hidden ${
-              booking.status === BookingStatus.CANCELLED ? 'border-slate-100 opacity-75 bg-slate-50' : 'border-slate-200 shadow-sm hover:shadow-md'
+            <div key={booking.id} className={`bg-surface p-6 rounded-3xl border transition-all flex flex-col md:flex-row gap-6 md:items-center justify-between group relative overflow-hidden ${
+              booking.status === BookingStatus.CANCELLED ? 'border-slate-100 opacity-60 bg-slate-50' : 'border-slate-100/50 shadow-card hover:shadow-soft'
             }`}>
-              {booking.status === 'PENDING' && <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-400" />}
-              {booking.status === 'ASSIGNED' && <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500" />}
-              {booking.status === 'COMPLETED' && <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500" />}
-              {booking.status === 'CANCELLED' && <div className="absolute left-0 top-0 bottom-0 w-1 bg-slate-300" />}
+              {booking.status === 'PENDING' && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-amber-400" />}
+              {booking.status === 'ASSIGNED' && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-brand-500" />}
+              {booking.status === 'COMPLETED' && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500" />}
+              {booking.status === 'CANCELLED' && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-slate-300" />}
 
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-2">
+              <div className="flex-1 pl-2">
+                <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs text-slate-400">#{booking.id.toUpperCase()}</span>
-                    <span className={`text-sm font-bold ${booking.status === 'CANCELLED' ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
+                    <span className="font-mono text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">#{booking.id.toUpperCase()}</span>
+                    <span className={`text-lg font-bold tracking-tight ${booking.status === 'CANCELLED' ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
                       {booking.customerName}
                     </span>
-                    <span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-500">{booking.passengers} pax</span>
-                    {booking.paymentStatus === PaymentStatus.PAID && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">PAID</span>}
-                    {booking.paymentStatus === PaymentStatus.INVOICED && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-bold">XERO</span>}
+                    <div className="flex gap-1">
+                        <span className="text-[10px] font-bold bg-slate-100 px-2 py-1 rounded-md text-slate-500 uppercase">{booking.passengers} pax</span>
+                        {booking.paymentStatus === PaymentStatus.PAID && <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-1 rounded-md font-bold border border-emerald-100">PAID</span>}
+                        {booking.paymentStatus === PaymentStatus.INVOICED && <span className="text-[10px] bg-brand-50 text-brand-600 px-2 py-1 rounded-md font-bold border border-brand-100">XERO</span>}
+                    </div>
                   </div>
                   {isCancellable && (
                     <button
@@ -343,32 +361,32 @@ const App: React.FC = () => {
                         e.stopPropagation();
                         setBookingToCancel(booking);
                       }}
-                      className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors md:hidden"
+                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors md:hidden"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
                 </div>
-                <div className="grid md:grid-cols-2 gap-2 text-sm">
-                   <div className="flex items-center gap-2 text-slate-600">
-                      <MapPin className={`w-4 h-4 ${booking.status === 'CANCELLED' ? 'text-slate-400' : 'text-green-500'}`} />
-                      <span className="truncate max-w-[200px]">{booking.pickupLocation}</span>
+                <div className="grid md:grid-cols-2 gap-3 text-sm">
+                   <div className="flex items-center gap-3 text-slate-600 bg-slate-50/50 p-2 rounded-xl">
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${booking.status === 'CANCELLED' ? 'bg-slate-300' : 'bg-emerald-400'}`} />
+                      <span className="truncate font-medium">{booking.pickupLocation}</span>
                    </div>
-                   <div className="flex items-center gap-2 text-slate-600">
-                      <MapPin className={`w-4 h-4 ${booking.status === 'CANCELLED' ? 'text-slate-400' : 'text-red-500'}`} />
-                      <span className="truncate max-w-[200px]">{booking.dropoffLocation}</span>
+                   <div className="flex items-center gap-3 text-slate-600 bg-slate-50/50 p-2 rounded-xl">
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${booking.status === 'CANCELLED' ? 'bg-slate-300' : 'bg-red-400'}`} />
+                      <span className="truncate font-medium">{booking.dropoffLocation}</span>
                    </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between md:justify-end gap-6 mt-2 md:mt-0">
+              <div className="flex items-center justify-between md:justify-end gap-8 mt-2 md:mt-0">
                 <div className="text-left md:text-right">
-                  <div className="flex items-center gap-2 text-slate-900 font-bold">
+                  <div className="flex items-center gap-2 text-slate-900 font-bold text-lg">
                     <Clock className="w-4 h-4 text-slate-400" />
-                    {new Date(booking.pickupTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    {new Date(booking.pickupTime).toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'})}
                   </div>
-                  <div className="text-xs text-slate-500">
-                     {new Date(booking.pickupTime).toLocaleDateString()}
+                  <div className="text-xs font-medium text-slate-500">
+                     {new Date(booking.pickupTime).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
                   </div>
                 </div>
 
@@ -376,22 +394,22 @@ const App: React.FC = () => {
                   {booking.status === 'PENDING' ? (
                     <button 
                       onClick={() => setSelectedBookingForDispatch(booking)}
-                      className="bg-slate-900 text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20"
+                      className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 active:scale-95"
                     >
                       Dispatch
                     </button>
                   ) : booking.status === 'CANCELLED' ? (
-                    <span className="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
+                    <span className="text-xs font-bold text-slate-400 bg-slate-100 px-4 py-2 rounded-xl border border-slate-200">
                       CANCELLED
                     </span>
                   ) : (
-                    <div className="flex items-center gap-2 bg-slate-50 pl-2 pr-4 py-1.5 rounded-full border border-slate-200">
-                      <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-700">
+                    <div className="flex items-center gap-3 bg-slate-50 pl-2 pr-5 py-2 rounded-full border border-slate-200">
+                      <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-700 shadow-sm">
                           {assignedDriver?.name[0]}
                       </div>
                       <div className="flex flex-col">
-                          <span className="text-xs font-bold text-slate-900">{assignedDriver?.name}</span>
-                          <span className="text-[10px] text-slate-500 uppercase tracking-wide">Assigned</span>
+                          <span className="text-xs font-bold text-slate-900">{assignedDriver?.name.split(' ')[0]}</span>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wide font-bold">On Job</span>
                       </div>
                     </div>
                   )}
@@ -402,10 +420,10 @@ const App: React.FC = () => {
                         e.stopPropagation();
                         setBookingToCancel(booking);
                       }}
-                      className="hidden md:block p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                      className="hidden md:block p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-colors border border-transparent hover:border-red-100"
                       title="Cancel Booking"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-5 h-5" />
                     </button>
                   )}
                 </div>
@@ -418,52 +436,52 @@ const App: React.FC = () => {
   );
 
   const renderServicesList = () => (
-    <div className="space-y-4 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center mb-2">
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex justify-between items-center">
         <div>
-           <h2 className="text-2xl font-bold text-slate-900">Services & Concierge</h2>
-           <p className="text-slate-500 text-sm">Track driver purchases and service charges</p>
+           <h2 className="text-3xl font-black text-slate-900 tracking-tight">Services & Concierge</h2>
+           <p className="text-slate-500 font-medium mt-1">Track driver purchases and service charges</p>
         </div>
       </div>
       
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-surface rounded-3xl border border-slate-100/50 shadow-card overflow-hidden">
         <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-slate-500">
+            <thead className="bg-slate-50/50 text-slate-400 uppercase tracking-wider text-xs">
               <tr>
-                <th className="px-6 py-4 font-medium">Date</th>
-                <th className="px-6 py-4 font-medium">Description</th>
-                <th className="px-6 py-4 font-medium">Vendor</th>
-                <th className="px-6 py-4 font-medium">Cost</th>
-                <th className="px-6 py-4 font-medium">Fee</th>
-                <th className="px-6 py-4 font-medium">Total</th>
-                <th className="px-6 py-4 font-medium">Driver</th>
-                <th className="px-6 py-4 font-medium">Status</th>
+                <th className="px-8 py-5 font-bold">Date</th>
+                <th className="px-8 py-5 font-bold">Description</th>
+                <th className="px-8 py-5 font-bold">Vendor</th>
+                <th className="px-8 py-5 font-bold">Cost</th>
+                <th className="px-8 py-5 font-bold">Fee</th>
+                <th className="px-8 py-5 font-bold">Total</th>
+                <th className="px-8 py-5 font-bold">Driver</th>
+                <th className="px-8 py-5 font-bold">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-50">
                 {services.map(service => {
                     const driver = drivers.find(d => d.id === service.driverId);
                     return (
-                        <tr key={service.id} className="hover:bg-slate-50">
-                            <td className="px-6 py-4 text-slate-500">{new Date(service.date).toLocaleDateString()}</td>
-                            <td className="px-6 py-4 font-medium text-slate-900">{service.description}</td>
-                            <td className="px-6 py-4 text-slate-600">{service.vendor}</td>
-                            <td className="px-6 py-4 text-slate-600">£{service.cost.toFixed(2)}</td>
-                            <td className="px-6 py-4 text-purple-600 font-medium">+£{service.serviceFee.toFixed(2)} ({service.serviceChargePercent}%)</td>
-                            <td className="px-6 py-4 font-bold text-slate-900">£{service.total.toFixed(2)}</td>
-                            <td className="px-6 py-4 text-slate-500">
+                        <tr key={service.id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="px-8 py-5 text-slate-500 font-medium">{new Date(service.date).toLocaleDateString('en-GB')}</td>
+                            <td className="px-8 py-5 font-bold text-slate-900">{service.description}</td>
+                            <td className="px-8 py-5 text-slate-600 font-medium">{service.vendor}</td>
+                            <td className="px-8 py-5 text-slate-600 font-medium">£{service.cost.toFixed(2)}</td>
+                            <td className="px-8 py-5 text-accent-600 font-bold">+£{service.serviceFee.toFixed(2)} <span className="text-xs font-normal text-slate-400 ml-1">({service.serviceChargePercent}%)</span></td>
+                            <td className="px-8 py-5 font-black text-slate-900">£{service.total.toFixed(2)}</td>
+                            <td className="px-8 py-5 text-slate-500">
                                 {driver ? (
                                     <div className="flex items-center gap-2">
                                         <div className="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center text-[10px] font-bold">{driver.name[0]}</div>
-                                        <span className="text-xs">{driver.name}</span>
+                                        <span className="text-xs font-bold">{driver.name.split(' ')[0]}</span>
                                     </div>
                                 ) : <span className="text-xs italic text-slate-400">Unassigned</span>}
                             </td>
-                            <td className="px-6 py-4">
-                                <span className={`text-xs px-2 py-1 rounded-full font-bold ${
-                                    service.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                                    service.status === 'PAID' ? 'bg-blue-100 text-blue-700' :
-                                    'bg-orange-100 text-orange-700'
+                            <td className="px-8 py-5">
+                                <span className={`text-xs px-3 py-1 rounded-full font-bold border ${
+                                    service.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                    service.status === 'PAID' ? 'bg-brand-50 text-brand-700 border-brand-100' :
+                                    'bg-amber-50 text-amber-700 border-amber-100'
                                 }`}>
                                     {service.status}
                                 </span>
@@ -474,9 +492,9 @@ const App: React.FC = () => {
             </tbody>
         </table>
         {services.length === 0 && (
-            <div className="p-8 text-center text-slate-400">
-                <ShoppingBag className="w-10 h-10 mx-auto mb-2 opacity-20" />
-                <p>No service records yet.</p>
+            <div className="p-12 text-center text-slate-400">
+                <ShoppingBag className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                <p className="font-medium">No service records yet.</p>
             </div>
         )}
       </div>
@@ -484,69 +502,70 @@ const App: React.FC = () => {
   );
 
   const renderDriversList = () => (
-    <div className="space-y-4 animate-in fade-in duration-500">
-        <div className="flex justify-between items-center mb-2">
+    <div className="space-y-6 animate-in fade-in duration-500">
+        <div className="flex justify-between items-center">
             <div>
-                <h2 className="text-2xl font-bold text-slate-900">Fleet Management</h2>
-                <p className="text-slate-500 text-sm">Manage your drivers, vehicles, and availability</p>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Fleet Management</h2>
+                <p className="text-slate-500 font-medium mt-1">Manage your drivers, vehicles, and availability</p>
             </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {drivers.map(driver => (
-                <div key={driver.id} className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-all group">
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-600 font-bold text-lg flex items-center justify-center">
+                <div key={driver.id} className="bg-surface rounded-3xl border border-slate-100 shadow-card p-6 hover:shadow-soft transition-all group cursor-default">
+                    <div className="flex justify-between items-start mb-6">
+                        <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-600 font-bold text-xl flex items-center justify-center shadow-inner">
                                 {driver.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
                             </div>
                             <div>
-                                <h3 className="font-bold text-slate-900">{driver.name}</h3>
-                                <div className="flex items-center gap-1 text-xs text-slate-500">
-                                    <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                                    <span className="font-medium text-slate-700">{driver.rating}</span>
-                                    <span>• {driver.location}</span>
+                                <h3 className="font-bold text-slate-900 text-lg leading-tight">{driver.name}</h3>
+                                <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
+                                    <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                                    <span className="font-bold text-slate-700">{driver.rating}</span>
+                                    <span className="text-slate-300">•</span>
+                                    <span className="font-medium">{driver.location}</span>
                                 </div>
                             </div>
                         </div>
-                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                            driver.status === DriverStatus.AVAILABLE ? 'bg-emerald-100 text-emerald-700' :
-                            driver.status === DriverStatus.BUSY ? 'bg-orange-100 text-orange-700' :
-                            'bg-slate-100 text-slate-500'
+                        <span className={`px-3 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider border ${
+                            driver.status === DriverStatus.AVAILABLE ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                            driver.status === DriverStatus.BUSY ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                            'bg-slate-50 text-slate-500 border-slate-100'
                         }`}>
                             {driver.status.replace('_', ' ')}
                         </span>
                     </div>
 
-                    <div className="space-y-2 mb-4">
-                        <div className="flex items-center justify-between text-sm p-2 bg-slate-50 rounded-lg">
-                            <div className="flex items-center gap-2 text-slate-600">
-                                <Car className="w-4 h-4" />
-                                <span className="font-medium">{driver.vehicle}</span>
+                    <div className="space-y-3 mb-6">
+                        <div className="flex items-center justify-between text-sm p-3 bg-slate-50/80 rounded-2xl border border-slate-100">
+                            <div className="flex items-center gap-3 text-slate-700">
+                                <Car className="w-4 h-4 text-slate-400" />
+                                <span className="font-bold">{driver.vehicle}</span>
                             </div>
-                            <div className="text-slate-500 text-xs">{driver.vehicleColor} • {driver.plate}</div>
+                            <div className="text-slate-500 text-xs font-medium bg-white px-2 py-1 rounded-lg border border-slate-100 shadow-sm">{driver.vehicleColour} • {driver.plate}</div>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-slate-600 p-2">
-                            <Phone className="w-4 h-4" />
-                            <span>{driver.phone}</span>
+                        <div className="flex items-center gap-3 text-sm text-slate-600 p-3 bg-slate-50/80 rounded-2xl border border-slate-100">
+                            <Phone className="w-4 h-4 text-slate-400" />
+                            <span className="font-medium tracking-wide">{driver.phone}</span>
                         </div>
                     </div>
 
                     {driver.notes && (
-                        <div className="text-xs text-slate-500 bg-white border border-slate-100 p-2 rounded-lg italic mb-4">
+                        <div className="text-xs text-slate-500 bg-amber-50/50 border border-amber-100 p-3 rounded-xl italic mb-6">
                             "{driver.notes}"
                         </div>
                     )}
 
-                    <div className="flex gap-2">
-                         <button className="flex-1 py-2 text-xs font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors">
+                    <div className="flex gap-3">
+                         <button className="flex-1 py-3 text-xs font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors shadow-sm">
                             Edit Profile
                          </button>
                          <button 
                             onClick={() => window.open(`https://wa.me/${driver.phone.replace(/\+/g, '')}`, '_blank')}
-                            className="flex-1 py-2 text-xs font-bold text-white bg-green-500 hover:bg-green-600 rounded-lg transition-colors flex items-center justify-center gap-1"
+                            className="flex-1 py-3 text-xs font-bold text-white bg-whatsapp hover:bg-whatsapp-dark rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
                         >
-                            <MessageSquare className="w-3 h-3" /> WhatsApp
+                            <MessageSquare className="w-4 h-4" /> WhatsApp
                          </button>
                     </div>
                 </div>
@@ -556,60 +575,66 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans">
+    <div className="min-h-screen bg-background flex font-sans text-slate-900">
       {/* Sidebar (Desktop) */}
-      <div className="hidden md:flex w-64 bg-white border-r border-slate-200 flex-col fixed h-full z-10">
-        <div className="p-6 border-b border-slate-100">
-          <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
-               <Car className="text-white w-5 h-5" />
+      <div className="hidden md:flex w-72 bg-surface border-r border-slate-100 flex-col fixed h-full z-10 shadow-soft">
+        <div className="p-8">
+          <h1 className="text-2xl font-black text-slate-900 tracking-tighter flex items-center gap-3">
+            <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center shadow-lg shadow-brand-500/40">
+               <Car className="text-white w-6 h-6" />
             </div>
-            ELITE<span className="text-slate-400 font-light">DISPATCH</span>
+            <div>
+                ELITE<span className="text-slate-400 font-light">DISPATCH</span>
+            </div>
           </h1>
         </div>
         
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 px-6 space-y-2">
           <SidebarItem icon={LayoutDashboard} label="Dashboard" active={currentView === 'dashboard'} onClick={() => setCurrentView('dashboard')} />
           <SidebarItem icon={CalendarPlus} label="Dispatch Board" active={currentView === 'bookings'} onClick={() => setCurrentView('bookings')} />
           <SidebarItem icon={Users} label="Drivers" active={currentView === 'drivers'} onClick={() => setCurrentView('drivers')} />
-          <SidebarItem icon={ShoppingBag} label="Services" active={currentView === 'services'} onClick={() => setCurrentView('services')} />
+          <SidebarItem icon={ShoppingBag} label="Concierge" active={currentView === 'services'} onClick={() => setCurrentView('services')} />
         </nav>
 
-        <div className="p-4 border-t border-slate-100">
+        <div className="p-6 border-t border-slate-50">
             <button 
                 onClick={() => setIsWidgetOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 mb-4 text-xs font-bold text-brand-600 bg-brand-50 rounded-lg hover:bg-brand-100 w-full justify-center"
+                className="flex items-center gap-2 px-4 py-3 mb-5 text-xs font-bold text-brand-700 bg-brand-50 rounded-2xl hover:bg-brand-100 w-full justify-center transition-colors border border-brand-100"
             >
-                <Globe className="w-3 h-3" />
-                Open Booking Widget
+                <Globe className="w-4 h-4" />
+                Booking Widget
             </button>
             
-            <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl p-4 text-white relative overflow-hidden group cursor-pointer">
-                <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10 group-hover:scale-110 transition-transform"></div>
-                <h4 className="font-bold text-sm mb-1">Pro Plan</h4>
-                <p className="text-xs text-slate-300 mb-3">Unlock AI Auto-Assign</p>
-                <button className="w-full py-1.5 bg-white text-slate-900 text-xs font-bold rounded-lg">Upgrade</button>
+            <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-5 text-white relative overflow-hidden group cursor-pointer shadow-xl shadow-slate-900/20">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12 group-hover:scale-110 transition-transform duration-500"></div>
+                <div className="relative z-10">
+                    <h4 className="font-bold text-base mb-1">Pro Plan</h4>
+                    <p className="text-xs text-slate-300 mb-4 font-medium">Unlock AI Auto-Assign & Analytics</p>
+                    <button className="w-full py-2 bg-white text-slate-900 text-xs font-bold rounded-xl hover:bg-slate-50 transition-colors">Upgrade Now</button>
+                </div>
             </div>
-            <button className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-red-600 transition-colors mt-2 w-full">
-                <LogOut className="w-5 h-5" />
-                <span className="font-medium text-sm">Sign Out</span>
+            <button onClick={() => setShowLanding(true)} className="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-red-500 transition-colors mt-4 w-full justify-center group">
+                <LogOut className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
+                <span className="font-bold text-sm">Sign Out</span>
             </button>
         </div>
       </div>
 
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 bg-white z-20 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
-         <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
-            <Car className="text-white w-5 h-5" />
+      <div className="md:hidden fixed top-0 left-0 right-0 bg-surface z-20 px-4 py-3 border-b border-slate-100 flex justify-between items-center shadow-sm">
+         <div className="flex items-center gap-2">
+             <div className="w-9 h-9 bg-brand-600 rounded-xl flex items-center justify-center shadow-lg shadow-brand-500/30">
+                <Car className="text-white w-5 h-5" />
+             </div>
+             <span className="font-black text-lg tracking-tight">ELITE</span>
          </div>
-         <h1 className="text-lg font-bold text-slate-900">ED</h1>
-         <button onClick={() => setIsWidgetOpen(true)} className="p-2 bg-brand-50 rounded-full">
-            <Globe className="w-5 h-5 text-brand-600" />
+         <button onClick={() => setIsWidgetOpen(true)} className="p-2.5 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors">
+            <Globe className="w-5 h-5 text-slate-600" />
          </button>
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 md:ml-64 p-4 md:p-8 pt-20 md:pt-8 pb-24 md:pb-8 overflow-y-auto max-w-[1600px] mx-auto w-full">
+      <main className="flex-1 md:ml-72 p-4 md:p-10 pt-20 md:pt-10 pb-28 md:pb-10 overflow-y-auto max-w-[1920px] mx-auto w-full">
         {currentView === 'dashboard' && renderDashboard()}
         {currentView === 'bookings' && renderBookingsList()}
         {currentView === 'services' && renderServicesList()}
@@ -627,32 +652,32 @@ const App: React.FC = () => {
                 setIsBookingModalOpen(true);
             }
         }}
-        className={`fixed bottom-20 md:bottom-8 right-4 md:right-8 w-14 h-14 text-white rounded-full shadow-lg flex items-center justify-center transition-transform active:scale-90 z-30 ${
-            currentView === 'services' ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/40' : 
-            currentView === 'drivers' ? 'bg-slate-900 hover:bg-slate-800 shadow-slate-900/40' :
-            'bg-brand-600 hover:bg-brand-700 shadow-brand-500/40'
+        className={`fixed bottom-24 md:bottom-10 right-6 md:right-10 w-16 h-16 text-white rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 z-30 ${
+            currentView === 'services' ? 'bg-accent-500 hover:bg-accent-600 shadow-glow shadow-accent-500/40' : 
+            currentView === 'drivers' ? 'bg-slate-900 hover:bg-slate-800 shadow-glow shadow-slate-900/40' :
+            'bg-brand-600 hover:bg-brand-700 shadow-glow shadow-brand-500/40'
         }`}
       >
         <Plus className="w-8 h-8" />
       </button>
 
       {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 flex justify-between items-center z-30">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-slate-100 px-6 py-3 flex justify-between items-center z-30 pb-safe">
         <button onClick={() => setCurrentView('dashboard')} className={`flex flex-col items-center gap-1 ${currentView === 'dashboard' ? 'text-brand-600' : 'text-slate-400'}`}>
-            <LayoutDashboard className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Home</span>
+            <LayoutDashboard className={`w-6 h-6 ${currentView === 'dashboard' ? 'fill-brand-100' : ''}`} />
+            <span className="text-[10px] font-bold">Home</span>
         </button>
         <button onClick={() => setCurrentView('bookings')} className={`flex flex-col items-center gap-1 ${currentView === 'bookings' ? 'text-brand-600' : 'text-slate-400'}`}>
-            <CalendarPlus className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Dispatch</span>
+            <CalendarPlus className={`w-6 h-6 ${currentView === 'bookings' ? 'fill-brand-100' : ''}`} />
+            <span className="text-[10px] font-bold">Dispatch</span>
         </button>
-        <button onClick={() => setCurrentView('services')} className={`flex flex-col items-center gap-1 ${currentView === 'services' ? 'text-purple-600' : 'text-slate-400'}`}>
-            <ShoppingBag className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Services</span>
+        <button onClick={() => setCurrentView('services')} className={`flex flex-col items-center gap-1 ${currentView === 'services' ? 'text-accent-600' : 'text-slate-400'}`}>
+            <ShoppingBag className={`w-6 h-6 ${currentView === 'services' ? 'fill-accent-100' : ''}`} />
+            <span className="text-[10px] font-bold">Concierge</span>
         </button>
         <button onClick={() => setCurrentView('drivers')} className={`flex flex-col items-center gap-1 ${currentView === 'drivers' ? 'text-brand-600' : 'text-slate-400'}`}>
-            <Users className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Drivers</span>
+            <Users className={`w-6 h-6 ${currentView === 'drivers' ? 'fill-brand-100' : ''}`} />
+            <span className="text-[10px] font-bold">Fleet</span>
         </button>
       </div>
 

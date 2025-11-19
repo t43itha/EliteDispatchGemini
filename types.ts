@@ -29,7 +29,7 @@ export interface Driver {
   name: string;
   phone: string;
   vehicle: string;
-  vehicleColor?: string;
+  vehicleColour?: string;
   plate: string;
   status: DriverStatus;
   rating: number;

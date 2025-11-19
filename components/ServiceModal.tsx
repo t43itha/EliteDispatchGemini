@@ -49,7 +49,6 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({ isOpen, onClose, onC
     };
     onCreate(newService);
     onClose();
-    // Reset form
     setFormData({ description: '', vendor: '', cost: '', serviceChargePercent: '5', notes: '' });
   };
 
@@ -58,68 +57,68 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({ isOpen, onClose, onC
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <ShoppingBag className="w-5 h-5 text-purple-600" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-3xl w-full max-w-md shadow-soft overflow-hidden animate-in fade-in zoom-in duration-300 border border-slate-100">
+        <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-white">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-accent-50 rounded-xl">
+              <ShoppingBag className="w-5 h-5 text-accent-600" />
             </div>
-            <h2 className="font-bold text-lg text-slate-800">Add Concierge Service</h2>
+            <h2 className="font-bold text-xl text-slate-800 tracking-tight">Add Concierge Service</h2>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-slate-200 rounded-full transition-colors">
-            <X className="w-5 h-5 text-slate-500" />
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+            <X className="w-5 h-5 text-slate-400" />
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
           
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Description of Item/Service</label>
-            <input required type="text" name="description" placeholder="e.g. Vintage Wine, Concert Tickets" value={formData.description} onChange={handleChange} className="w-full p-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none" />
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Item Description</label>
+            <input required type="text" name="description" placeholder="e.g. Vintage Wine" value={formData.description} onChange={handleChange} className="w-full p-3 bg-slate-50 rounded-xl border-0 ring-1 ring-slate-200 focus:ring-2 focus:ring-accent-500 focus:bg-white transition-all outline-none font-medium text-slate-700" />
           </div>
 
           <div>
-             <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Vendor / Store</label>
-            <input required type="text" name="vendor" placeholder="e.g. Harrods, The Ritz" value={formData.vendor} onChange={handleChange} className="w-full p-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none" />
+             <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Vendor / Store</label>
+            <input required type="text" name="vendor" placeholder="e.g. Harrods" value={formData.vendor} onChange={handleChange} className="w-full p-3 bg-slate-50 rounded-xl border-0 ring-1 ring-slate-200 focus:ring-2 focus:ring-accent-500 focus:bg-white transition-all outline-none font-medium text-slate-700" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Cost (£)</label>
-              <input required type="number" step="0.01" name="cost" placeholder="0.00" value={formData.cost} onChange={handleChange} className="w-full p-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none" />
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Cost (£)</label>
+              <input required type="number" step="0.01" name="cost" placeholder="0.00" value={formData.cost} onChange={handleChange} className="w-full p-3 bg-slate-50 rounded-xl border-0 ring-1 ring-slate-200 focus:ring-2 focus:ring-accent-500 focus:bg-white transition-all outline-none font-medium text-slate-700" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Service Charge %</label>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Service Charge %</label>
               <div className="relative">
-                 <input required type="number" min="0" max="100" name="serviceChargePercent" value={formData.serviceChargePercent} onChange={handleChange} className="w-full p-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none" />
-                 <span className="absolute right-3 top-2 text-slate-400 font-bold">%</span>
+                 <input required type="number" min="0" max="100" name="serviceChargePercent" value={formData.serviceChargePercent} onChange={handleChange} className="w-full p-3 bg-slate-50 rounded-xl border-0 ring-1 ring-slate-200 focus:ring-2 focus:ring-accent-500 focus:bg-white transition-all outline-none font-medium text-slate-700" />
+                 <span className="absolute right-4 top-3.5 text-slate-400 font-bold">%</span>
               </div>
             </div>
           </div>
 
           {/* Calculator Display */}
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
-             <div className="flex justify-between text-sm text-slate-500">
+          <div className="bg-accent-50/50 p-5 rounded-2xl border border-accent-100 space-y-2">
+             <div className="flex justify-between text-sm text-slate-500 font-medium">
                 <span>Subtotal (Cost)</span>
                 <span>£{parseFloat(formData.cost || '0').toFixed(2)}</span>
              </div>
-             <div className="flex justify-between text-sm text-purple-600 font-medium">
+             <div className="flex justify-between text-sm text-accent-600 font-bold">
                 <span>Service Fee ({formData.serviceChargePercent}%)</span>
                 <span>+ £{calculations.fee.toFixed(2)}</span>
              </div>
-             <div className="border-t border-slate-200 pt-2 flex justify-between font-bold text-slate-900 text-lg">
+             <div className="border-t border-accent-200/50 pt-3 mt-1 flex justify-between font-black text-slate-800 text-lg">
                 <span>Total to Bill</span>
                 <span>£{calculations.total.toFixed(2)}</span>
              </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Internal Notes</label>
-            <textarea name="notes" rows={2} value={formData.notes} onChange={handleChange} className="w-full p-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"></textarea>
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Internal Notes</label>
+            <textarea name="notes" rows={2} value={formData.notes} onChange={handleChange} className="w-full p-3 bg-slate-50 rounded-xl border-0 ring-1 ring-slate-200 focus:ring-2 focus:ring-accent-500 focus:bg-white transition-all outline-none font-medium text-slate-700 resize-none"></textarea>
           </div>
 
-          <button type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl transition-all transform active:scale-95 mt-4 flex items-center justify-center gap-2">
+          <button type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl transition-all transform active:scale-[0.98] shadow-lg shadow-slate-900/20 mt-2 flex items-center justify-center gap-2">
             <Calculator className="w-5 h-5" />
             Add Service Record
           </button>

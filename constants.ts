@@ -1,53 +1,53 @@
 
-import { Driver, Booking, DriverStatus, BookingStatus, ServiceRecord } from './types';
+import { Driver, Booking, DriverStatus, BookingStatus, ServiceRecord, VehicleClass } from './types';
 
 export const MOCK_DRIVERS: Driver[] = [
   {
     id: 'd1',
-    name: 'Carlos Mendoza',
-    phone: '+13055550101',
-    vehicle: 'Cadillac Escalade',
-    vehicleColor: 'Black',
-    plate: 'LIMO-99',
+    name: 'James Sterling',
+    phone: '+447700900001',
+    vehicle: 'Mercedes S-Class',
+    vehicleColour: 'Obsidian Black',
+    plate: 'LD69 VXL',
     status: DriverStatus.AVAILABLE,
     rating: 4.9,
-    location: 'Downtown Miami',
-    notes: 'Prefers long distance trips. speaks Spanish.'
+    location: 'Mayfair, London',
+    notes: 'Expert in corporate roadshows.'
   },
   {
     id: 'd2',
     name: 'Sarah Jenkins',
-    phone: '+13055550102',
-    vehicle: 'Mercedes S-Class',
-    vehicleColor: 'Silver',
-    plate: 'LUX-01',
+    phone: '+447700900002',
+    vehicle: 'Mercedes V-Class',
+    vehicleColour: 'Silver',
+    plate: 'GV23 ABC',
     status: DriverStatus.BUSY,
     rating: 4.8,
-    location: 'MIA Airport',
+    location: 'Heathrow T5',
     notes: 'Available for night shifts.'
   },
   {
     id: 'd3',
     name: 'Michael Chen',
-    phone: '+13055550103',
-    vehicle: 'Chevy Suburban',
-    vehicleColor: 'Black',
-    plate: 'VIP-88',
+    phone: '+447700900003',
+    vehicle: 'BMW 7 Series',
+    vehicleColour: 'Black',
+    plate: 'BK72 XYZ',
     status: DriverStatus.AVAILABLE,
     rating: 4.7,
-    location: 'South Beach',
+    location: 'Canary Wharf',
     notes: 'Great with corporate clients.'
   },
   {
     id: 'd4',
     name: 'David Ross',
-    phone: '+13055550104',
-    vehicle: 'Lincoln Continental',
-    vehicleColor: 'White',
-    plate: 'EXEC-22',
+    phone: '+447700900004',
+    vehicle: 'Range Rover',
+    vehicleColour: 'White',
+    plate: 'RR22 BOSS',
     status: DriverStatus.OFF_DUTY,
     rating: 4.5,
-    location: 'Coral Gables',
+    location: 'Kensington',
     notes: 'No weekends.'
   }
 ];
@@ -56,40 +56,43 @@ export const MOCK_BOOKINGS: Booking[] = [
   {
     id: 'b1',
     customerName: 'John Smith',
-    customerPhone: '+12125551234',
-    pickupLocation: 'Fontainebleau Miami Beach',
-    dropoffLocation: 'Miami International Airport (MIA)',
+    customerPhone: '+447800123456',
+    pickupLocation: 'The Ritz London',
+    dropoffLocation: 'Heathrow Airport (LHR) T5',
     pickupTime: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
     passengers: 2,
-    price: 85,
+    price: 145,
     status: BookingStatus.PENDING,
-    notes: 'Flight AA1234'
+    notes: 'Flight BA123',
+    vehicleClass: VehicleClass.FIRST
   },
   {
     id: 'b2',
     customerName: 'Alice Cooper',
-    customerPhone: '+14155559876',
-    pickupLocation: 'Brickell City Centre',
-    dropoffLocation: 'Nobu Malibu',
+    customerPhone: '+447900654321',
+    pickupLocation: 'One Canada Square, Canary Wharf',
+    dropoffLocation: 'Gatwick Airport (LGW)',
     pickupTime: new Date(Date.now() + 7200000).toISOString(), // 2 hours from now
     passengers: 4,
-    price: 150,
+    price: 180,
     status: BookingStatus.ASSIGNED,
     driverId: 'd2',
-    notes: 'Extra luggage'
+    notes: 'Extra luggage',
+    vehicleClass: VehicleClass.VAN
   },
   {
     id: 'b3',
-    customerName: 'Tech Corp Inc.',
-    customerPhone: '+16505554321',
-    pickupLocation: 'MIA Airport Terminal D',
-    dropoffLocation: 'Ritz-Carlton Key Biscayne',
+    customerName: 'Tech Corp Ltd.',
+    customerPhone: '+442071234567',
+    pickupLocation: 'London City Airport (LCY)',
+    dropoffLocation: 'The Savoy',
     pickupTime: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
     passengers: 1,
-    price: 120,
+    price: 95,
     status: BookingStatus.COMPLETED,
     driverId: 'd1',
-    notes: 'VIP Client'
+    notes: 'VIP Client',
+    vehicleClass: VehicleClass.BUSINESS
   }
 ];
 
