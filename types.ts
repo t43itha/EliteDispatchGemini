@@ -1,4 +1,5 @@
 
+
 export enum BookingStatus {
   PENDING = 'PENDING',
   ASSIGNED = 'ASSIGNED',
@@ -22,6 +23,26 @@ export enum PaymentStatus {
   PENDING = 'PENDING',
   PAID = 'PAID',
   INVOICED = 'INVOICED'
+}
+
+export interface WidgetConfig {
+  companyName: string;
+  primaryColor: string;
+  currency: string;
+  showMap: boolean;
+  distanceUnit: 'km' | 'mi' | 'hr';
+  vehicles: {
+    [key in VehicleClass]: { 
+      enabled: boolean; 
+      basePrice: number; 
+      pricePerUnit: number;
+      image: string;
+      name: string;
+      description: string;
+      maxPassengers: number;
+      maxLuggage: number;
+    };
+  };
 }
 
 export interface Driver {

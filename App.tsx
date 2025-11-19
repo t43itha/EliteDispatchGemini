@@ -39,10 +39,10 @@ import { StatCard } from './components/StatCard';
 import { BookingModal } from './components/BookingModal';
 import { DispatchModal } from './components/DispatchModal';
 import { CancelModal } from './components/CancelModal';
-import { BookingWidget } from './components/BookingWidget';
 import { ServiceModal } from './components/ServiceModal';
 import { DriverModal } from './components/DriverModal';
 import { LandingPage } from './components/LandingPage';
+import { WidgetBuilder } from './components/WidgetBuilder';
 
 // --- Layout Components ---
 
@@ -64,7 +64,7 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }: { icon: any, label:
 
 const App: React.FC = () => {
   const [showLanding, setShowLanding] = useState(true);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'bookings' | 'drivers' | 'services'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'bookings' | 'drivers' | 'services' | 'widget_builder'>('dashboard');
   const [bookings, setBookings] = useState<Booking[]>(MOCK_BOOKINGS);
   const [drivers, setDrivers] = useState<Driver[]>(MOCK_DRIVERS);
   const [services, setServices] = useState<ServiceRecord[]>(MOCK_SERVICES);
@@ -72,7 +72,6 @@ const App: React.FC = () => {
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
-  const [isWidgetOpen, setIsWidgetOpen] = useState(false);
   
   const [selectedBookingForDispatch, setSelectedBookingForDispatch] = useState<Booking | null>(null);
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
@@ -118,7 +117,7 @@ const App: React.FC = () => {
     ));
     // Also update driver status simulation
     setDrivers(prev => prev.map(d => 
-      d.id === driverId ? { ...d, status: 'BUSY' } : d
+      d.id === driverId ? { ...d, status: DriverStatus.BUSY } : d
     ));
   };
 
@@ -598,8 +597,8 @@ const App: React.FC = () => {
 
         <div className="p-6 border-t border-slate-50">
             <button 
-                onClick={() => setIsWidgetOpen(true)}
-                className="flex items-center gap-2 px-4 py-3 mb-5 text-xs font-bold text-brand-700 bg-brand-50 rounded-2xl hover:bg-brand-100 w-full justify-center transition-colors border border-brand-100"
+                onClick={() => setCurrentView('widget_builder')}
+                className={`flex items-center gap-2 px-4 py-3 mb-5 text-xs font-bold rounded-2xl w-full justify-center transition-colors border ${currentView === 'widget_builder' ? 'bg-brand-600 text-white border-brand-600 shadow-lg' : 'bg-brand-50 text-brand-700 border-brand-100 hover:bg-brand-100'}`}
             >
                 <Globe className="w-4 h-4" />
                 Booking Widget
@@ -628,17 +627,18 @@ const App: React.FC = () => {
              </div>
              <span className="font-black text-lg tracking-tight">ELITE</span>
          </div>
-         <button onClick={() => setIsWidgetOpen(true)} className="p-2.5 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors">
+         <button onClick={() => setCurrentView('widget_builder')} className="p-2.5 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors">
             <Globe className="w-5 h-5 text-slate-600" />
          </button>
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 md:ml-72 p-4 md:p-10 pt-20 md:pt-10 pb-28 md:pb-10 overflow-y-auto max-w-[1920px] mx-auto w-full">
+      <main className="flex-1 md:ml-72 p-4 md:p-10 pt-20 md:pt-10 pb-28 md:pb-10 overflow-y-auto max-w-[1920px] mx-auto w-full h-screen">
         {currentView === 'dashboard' && renderDashboard()}
         {currentView === 'bookings' && renderBookingsList()}
         {currentView === 'services' && renderServicesList()}
         {currentView === 'drivers' && renderDriversList()}
+        {currentView === 'widget_builder' && <WidgetBuilder />}
       </main>
 
       {/* Floating Action Button (Mobile & Desktop) */}
@@ -656,7 +656,7 @@ const App: React.FC = () => {
             currentView === 'services' ? 'bg-accent-500 hover:bg-accent-600 shadow-glow shadow-accent-500/40' : 
             currentView === 'drivers' ? 'bg-slate-900 hover:bg-slate-800 shadow-glow shadow-slate-900/40' :
             'bg-brand-600 hover:bg-brand-700 shadow-glow shadow-brand-500/40'
-        }`}
+        } ${currentView === 'widget_builder' ? 'hidden' : ''}`}
       >
         <Plus className="w-8 h-8" />
       </button>
@@ -712,15 +712,9 @@ const App: React.FC = () => {
         onClose={() => setIsDriverModalOpen(false)}
         onCreate={handleCreateDriver}
       />
-
-      {isWidgetOpen && (
-          <BookingWidget 
-            onClose={() => setIsWidgetOpen(false)}
-            onCreate={handleCreateBooking}
-          />
-      )}
     </div>
   );
 };
 
 export default App;
+    
