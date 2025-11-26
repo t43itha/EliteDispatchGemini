@@ -11,6 +11,49 @@ import { Booking, BookingStatus, VehicleClass, PaymentStatus, WidgetConfig } fro
 // Declare google as any to avoid TypeScript namespace errors
 declare var google: any;
 
+// Load Google Maps API dynamically
+const loadGoogleMapsAPI = (): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    // Check if already loaded
+    if (typeof google !== 'undefined' && google.maps) {
+      resolve();
+      return;
+    }
+
+    // Check if script is already loading
+    if (document.querySelector('script[src*="maps.googleapis.com"]')) {
+      // Wait for it to load
+      const checkLoaded = setInterval(() => {
+        if (typeof google !== 'undefined' && google.maps) {
+          clearInterval(checkLoaded);
+          resolve();
+        }
+      }, 100);
+      return;
+    }
+
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
+      reject(new Error('Google Maps API key not configured'));
+      return;
+    }
+
+    // Create and load the script using Google's recommended bootstrap loader
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=__googleMapsCallback`;
+    script.async = true;
+    script.defer = true;
+
+    (window as any).__googleMapsCallback = () => {
+      delete (window as any).__googleMapsCallback;
+      resolve();
+    };
+
+    script.onerror = () => reject(new Error('Failed to load Google Maps API'));
+    document.head.appendChild(script);
+  });
+};
+
 interface BookingWidgetProps {
   onClose: () => void;
   onCreate: (booking: Booking) => void;
@@ -191,22 +234,20 @@ export const BookingWidget: React.FC<BookingWidgetProps> = ({
   useEffect(() => {
     const initGoogleMaps = async () => {
       try {
-        // Wait for the Google Maps API to load using importLibrary
-        const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
-        const { DirectionsService, DirectionsRenderer } = await google.maps.importLibrary("routes") as google.maps.RoutesLibrary;
-        const { Autocomplete } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
+        // Load the Google Maps API first
+        await loadGoogleMapsAPI();
 
         // Initialize Map
         if (config.showMap && mapRef.current && !mapInstanceRef.current) {
-          mapInstanceRef.current = new Map(mapRef.current, {
+          mapInstanceRef.current = new google.maps.Map(mapRef.current, {
             center: { lat: 51.5074, lng: -0.1278 }, // London Default
             zoom: 12,
             disableDefaultUI: true,
             styles: MAP_STYLES,
           });
 
-          directionsServiceRef.current = new DirectionsService();
-          directionsRendererRef.current = new DirectionsRenderer({
+          directionsServiceRef.current = new google.maps.DirectionsService();
+          directionsRendererRef.current = new google.maps.DirectionsRenderer({
             map: mapInstanceRef.current,
             suppressMarkers: false,
             polylineOptions: {
@@ -219,7 +260,7 @@ export const BookingWidget: React.FC<BookingWidgetProps> = ({
 
         // Initialize Autocomplete for Pickup
         if (pickupInputRef.current) {
-          const pickupAutocomplete = new Autocomplete(pickupInputRef.current, {
+          const pickupAutocomplete = new google.maps.places.Autocomplete(pickupInputRef.current, {
             fields: ["formatted_address", "geometry", "name"],
             strictBounds: false,
           });
@@ -234,7 +275,7 @@ export const BookingWidget: React.FC<BookingWidgetProps> = ({
 
         // Initialize Autocomplete for Dropoff
         if (dropoffInputRef.current) {
-          const dropoffAutocomplete = new Autocomplete(dropoffInputRef.current, {
+          const dropoffAutocomplete = new google.maps.places.Autocomplete(dropoffInputRef.current, {
             fields: ["formatted_address", "geometry", "name"],
             strictBounds: false,
           });
