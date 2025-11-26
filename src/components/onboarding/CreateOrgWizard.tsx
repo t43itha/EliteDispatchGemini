@@ -26,9 +26,7 @@ export const CreateOrgWizard: React.FC<CreateOrgWizardProps> = ({
     const { user } = useUser();
     const { orgId } = useAuth();
     const { createOrganization, setActive } = useOrganizationList();
-    const createOrg = useMutation(api.organizations.create);
-    const createAdmin = useMutation(api.users.createAdmin);
-    const completeOnboarding = useMutation(api.organizations.completeOnboarding);
+    const ensureSetup = useMutation(api.organizations.ensureSetup);
 
     const [step, setStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
@@ -62,26 +60,13 @@ export const CreateOrgWizard: React.FC<CreateOrgWizardProps> = ({
                     return;
                 }
 
-                // Create Convex organization record
-                console.log('Creating Convex organization record...');
-                await createOrg({
-                    clerkOrgId: data.clerkOrgId,
-                    name: data.name,
+                // Idempotent setup - safe to call multiple times
+                console.log('Running ensureSetup...');
+                await ensureSetup({
+                    orgName: data.name,
                     phone: data.phone,
                     email: data.email,
                 });
-
-                // Create admin user record
-                console.log('Creating admin user record...');
-                await createAdmin({
-                    clerkOrgId: data.clerkOrgId,
-                    email: user?.primaryEmailAddress?.emailAddress || data.email || '',
-                    name: user?.fullName || undefined,
-                });
-
-                // Mark onboarding as complete
-                console.log('Completing onboarding...');
-                await completeOnboarding({});
 
                 // Clear pending data
                 localStorage.removeItem(PENDING_ORG_KEY);
@@ -99,7 +84,7 @@ export const CreateOrgWizard: React.FC<CreateOrgWizardProps> = ({
         };
 
         completePendingOrg();
-    }, [orgId, createOrg, createAdmin, completeOnboarding, user, onComplete]);
+    }, [orgId, ensureSetup, onComplete]);
 
     const handleNext = async () => {
         if (step === 1) {

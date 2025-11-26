@@ -145,3 +145,66 @@ export const debugAuth = query({
         };
     },
 });
+
+/**
+ * Idempotent setup: ensures org and user records exist, marks onboarding complete.
+ * Safe to call multiple times - skips creation if records already exist.
+ */
+export const ensureSetup = mutation({
+    args: {
+        orgName: v.string(),
+        phone: v.optional(v.string()),
+        email: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Unauthenticated");
+
+        const clerkOrgId = (identity as any).org_id as string | undefined;
+        if (!clerkOrgId) throw new Error("No organization selected");
+
+        const clerkUserId = identity.subject;
+
+        // 1. Check/create organization record
+        let org = await ctx.db
+            .query("organizations")
+            .withIndex("by_clerk_org_id", (q) => q.eq("clerkOrgId", clerkOrgId))
+            .first();
+
+        if (!org) {
+            const orgId = await ctx.db.insert("organizations", {
+                clerkOrgId,
+                name: args.orgName,
+                phone: args.phone,
+                email: args.email,
+                createdAt: Date.now(),
+                onboardingComplete: false,
+            });
+            org = await ctx.db.get(orgId);
+        }
+
+        // 2. Check/create user record
+        let user = await ctx.db
+            .query("users")
+            .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", clerkUserId))
+            .first();
+
+        if (!user) {
+            await ctx.db.insert("users", {
+                clerkUserId,
+                email: identity.email || "",
+                name: identity.name,
+                orgId: clerkOrgId,
+                role: "admin",
+                createdAt: Date.now(),
+            });
+        }
+
+        // 3. Mark onboarding complete
+        if (org && !org.onboardingComplete) {
+            await ctx.db.patch(org._id, { onboardingComplete: true });
+        }
+
+        return { success: true };
+    },
+});

@@ -20,9 +20,7 @@ interface OnboardingRouterProps {
 const CompleteExistingOrg: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
     const { orgId } = useAuth();
     const { organization } = useOrganization();
-    const createOrg = useMutation(api.organizations.create);
-    const createAdmin = useMutation(api.users.createAdmin);
-    const completeOnboarding = useMutation(api.organizations.completeOnboarding);
+    const ensureSetup = useMutation(api.organizations.ensureSetup);
 
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -38,26 +36,13 @@ const CompleteExistingOrg: React.FC<{ onComplete: () => void }> = ({ onComplete 
             try {
                 console.log('Setting up Convex records for existing Clerk org:', orgId);
 
-                // Create Convex organization record
-                await createOrg({
-                    clerkOrgId: orgId,
-                    name: organization.name,
+                // Idempotent setup - safe to call multiple times
+                await ensureSetup({
+                    orgName: organization.name,
                     phone: undefined,
                     email: undefined,
                 });
-                console.log('Convex org created');
-
-                // Create admin user record
-                await createAdmin({
-                    clerkOrgId: orgId,
-                    email: '', // Will be filled from identity
-                    name: undefined,
-                });
-                console.log('Admin user created');
-
-                // Mark onboarding as complete
-                await completeOnboarding({});
-                console.log('Onboarding marked complete');
+                console.log('Convex setup complete');
 
                 // Clear any pending data
                 localStorage.removeItem(PENDING_ORG_KEY);
@@ -71,7 +56,7 @@ const CompleteExistingOrg: React.FC<{ onComplete: () => void }> = ({ onComplete 
         };
 
         setupConvexRecords();
-    }, [orgId, organization, createOrg, createAdmin, completeOnboarding, onComplete]);
+    }, [orgId, organization, ensureSetup, onComplete]);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
