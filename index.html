@@ -1,76 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EliteDispatch</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-            },
-            colors: {
-              brand: {
-                50: '#eff6ff',
-                100: '#dbeafe',
-                200: '#bfdbfe',
-                300: '#93c5fd',
-                400: '#60a5fa',
-                500: '#3b82f6',
-                600: '#2563eb', // Primary Blue
-                700: '#1d4ed8',
-                900: '#1e3a8a',
-              },
-              accent: {
-                50: '#f5f3ff',
-                100: '#ede9fe',
-                500: '#8b5cf6', // Violet accent
-                600: '#7c3aed',
-              },
-              surface: '#ffffff',
-              background: '#f8fafc', // Very light slate
-              whatsapp: {
-                DEFAULT: '#25D366',
-                dark: '#128C7E',
-              }
-            },
-            boxShadow: {
-              'soft': '0 4px 20px -2px rgba(29, 78, 216, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.01)',
-              'card': '0 0 0 1px rgba(0,0,0,0.03), 0 2px 8px rgba(0,0,0,0.04)',
-              'glow': '0 0 20px rgba(59, 130, 246, 0.15)',
-            },
-            borderRadius: {
-              'xl': '1rem',
-              '2xl': '1.25rem',
-              '3xl': '1.5rem',
-            }
-          }
-        }
-      }
-    </script>
-  <script type="importmap">
-{
-  "imports": {
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "recharts": "https://aistudiocdn.com/recharts@^3.4.1",
-    "framer-motion": "https://aistudiocdn.com/framer-motion@^11.0.8"
-  }
-}
-</script>
-<!-- REPLACE "YOUR_GOOGLE_MAPS_API_KEY" WITH YOUR ACTUAL API KEY BELOW -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAtOexWuLtJbh3AUiDN2VUVDG3dkh_Okbs&libraries=places"></script>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EliteDispatch</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <!-- Google Maps API with async loading for better performance -->
+  <script>
+    (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]);for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.googleapis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({
+      key: "AIzaSyAtOexWuLtJbh3AUiDN2VUVDG3dkh_Okbs",
+      v: "weekly"
+    });
+  </script>
 </head>
-  <body class="bg-background text-slate-800 font-sans antialiased selection:bg-brand-100 selection:text-brand-900">
-    <div id="root"></div>
-  </body>
+
+<body class="bg-background text-slate-800 font-sans antialiased selection:bg-brand-100 selection:text-brand-900">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
 </html>

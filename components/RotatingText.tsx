@@ -17,9 +17,9 @@ interface RotatingTextProps {
 const RotatingText = forwardRef<any, RotatingTextProps>(({
   texts,
   mainClassName = "",
-  initial = { y: "100%", opacity: 0, filter: "blur(10px)" },
-  animate = { y: 0, opacity: 1, filter: "blur(0px)" },
-  exit = { y: "-120%", opacity: 0, filter: "blur(10px)" },
+  initial = { y: "100%", opacity: 0 },
+  animate = { y: 0, opacity: 1 },
+  exit = { y: "-120%", opacity: 0 },
   transition = { type: "spring", damping: 25, stiffness: 300 },
   rotationInterval = 2000,
   staggerDuration = 0.05,

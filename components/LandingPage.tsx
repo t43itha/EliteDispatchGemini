@@ -78,9 +78,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
               texts={['Chauffeurs', 'Drivers', 'Taxi Fleets', 'Limo Services', 'Operators']}
               mainClassName="px-4 md:px-6 bg-slate-900 text-white overflow-hidden py-1 md:py-2 justify-center rounded-2xl shadow-xl shadow-brand-500/20 -rotate-1"
               staggerFrom="last"
-              initial={{ y: "100%", filter: "blur(4px)", opacity: 0 }}
-              animate={{ y: 0, filter: "blur(0px)", opacity: 1 }}
-              exit={{ y: "-120%", filter: "blur(4px)", opacity: 0 }}
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "-120%", opacity: 0 }}
               staggerDuration={0.03}
               splitLevelClassName="overflow-hidden pb-0.5 sm:pb-1 md:pb-1"
               transition={{ type: "spring", damping: 20, stiffness: 200 }}

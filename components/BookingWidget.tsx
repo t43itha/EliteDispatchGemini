@@ -187,64 +187,72 @@ export const BookingWidget: React.FC<BookingWidgetProps> = ({
   const directionsRendererRef = useRef<any>(null);
   const directionsServiceRef = useRef<any>(null);
 
-  // Initialize Map and Autocomplete
+  // Initialize Map and Autocomplete using async loading
   useEffect(() => {
-    if (!(window as any).google) {
-      setMapError(true);
-      return;
-    }
+    const initGoogleMaps = async () => {
+      try {
+        // Wait for the Google Maps API to load using importLibrary
+        const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
+        const { DirectionsService, DirectionsRenderer } = await google.maps.importLibrary("routes") as google.maps.RoutesLibrary;
+        const { Autocomplete } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
 
-    // Initialize Map
-    if (config.showMap && mapRef.current && !mapInstanceRef.current) {
-      mapInstanceRef.current = new google.maps.Map(mapRef.current, {
-        center: { lat: 51.5074, lng: -0.1278 }, // London Default
-        zoom: 12,
-        disableDefaultUI: true,
-        styles: MAP_STYLES,
-      });
+        // Initialize Map
+        if (config.showMap && mapRef.current && !mapInstanceRef.current) {
+          mapInstanceRef.current = new Map(mapRef.current, {
+            center: { lat: 51.5074, lng: -0.1278 }, // London Default
+            zoom: 12,
+            disableDefaultUI: true,
+            styles: MAP_STYLES,
+          });
 
-      directionsServiceRef.current = new google.maps.DirectionsService();
-      directionsRendererRef.current = new google.maps.DirectionsRenderer({
-        map: mapInstanceRef.current,
-        suppressMarkers: false,
-        polylineOptions: {
-          strokeColor: config.primaryColor,
-          strokeWeight: 5,
-          strokeOpacity: 0.8
+          directionsServiceRef.current = new DirectionsService();
+          directionsRendererRef.current = new DirectionsRenderer({
+            map: mapInstanceRef.current,
+            suppressMarkers: false,
+            polylineOptions: {
+              strokeColor: config.primaryColor,
+              strokeWeight: 5,
+              strokeOpacity: 0.8
+            }
+          });
         }
-      });
-    }
 
-    // Initialize Autocomplete for Pickup
-    if (pickupInputRef.current) {
-      const pickupAutocomplete = new google.maps.places.Autocomplete(pickupInputRef.current, {
-        fields: ["formatted_address", "geometry", "name"],
-        strictBounds: false,
-      });
-      
-      pickupAutocomplete.addListener("place_changed", () => {
-        const place = pickupAutocomplete.getPlace();
-        if (place.formatted_address) {
-          setFormData(prev => ({ ...prev, pickup: place.formatted_address || '' }));
+        // Initialize Autocomplete for Pickup
+        if (pickupInputRef.current) {
+          const pickupAutocomplete = new Autocomplete(pickupInputRef.current, {
+            fields: ["formatted_address", "geometry", "name"],
+            strictBounds: false,
+          });
+
+          pickupAutocomplete.addListener("place_changed", () => {
+            const place = pickupAutocomplete.getPlace();
+            if (place.formatted_address) {
+              setFormData(prev => ({ ...prev, pickup: place.formatted_address || '' }));
+            }
+          });
         }
-      });
-    }
 
-    // Initialize Autocomplete for Dropoff
-    if (dropoffInputRef.current) {
-      const dropoffAutocomplete = new google.maps.places.Autocomplete(dropoffInputRef.current, {
-        fields: ["formatted_address", "geometry", "name"],
-        strictBounds: false,
-      });
+        // Initialize Autocomplete for Dropoff
+        if (dropoffInputRef.current) {
+          const dropoffAutocomplete = new Autocomplete(dropoffInputRef.current, {
+            fields: ["formatted_address", "geometry", "name"],
+            strictBounds: false,
+          });
 
-      dropoffAutocomplete.addListener("place_changed", () => {
-        const place = dropoffAutocomplete.getPlace();
-        if (place.formatted_address) {
-          setFormData(prev => ({ ...prev, dropoff: place.formatted_address || '' }));
+          dropoffAutocomplete.addListener("place_changed", () => {
+            const place = dropoffAutocomplete.getPlace();
+            if (place.formatted_address) {
+              setFormData(prev => ({ ...prev, dropoff: place.formatted_address || '' }));
+            }
+          });
         }
-      });
-    }
+      } catch (error) {
+        console.error("Failed to load Google Maps:", error);
+        setMapError(true);
+      }
+    };
 
+    initGoogleMaps();
   }, [config.showMap, config.primaryColor]);
 
   // Trigger Route Calculation with Debounce
