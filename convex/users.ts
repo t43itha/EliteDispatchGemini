@@ -68,7 +68,7 @@ export const needsOnboarding = query({
 export const createAdmin = mutation({
     args: {
         clerkOrgId: v.string(),
-        email: v.string(),
+        email: v.optional(v.string()),
         name: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
@@ -76,6 +76,8 @@ export const createAdmin = mutation({
         if (!identity) throw new Error("Unauthenticated");
 
         const clerkUserId = identity.subject;
+        // Use email from args or fall back to identity email
+        const email = args.email || identity.email || "";
 
         // Check if user already exists
         const existing = await ctx.db
@@ -91,8 +93,8 @@ export const createAdmin = mutation({
 
         return await ctx.db.insert("users", {
             clerkUserId,
-            email: args.email,
-            name: args.name,
+            email,
+            name: args.name || identity.name,
             orgId: args.clerkOrgId,
             role: "admin",
             createdAt: Date.now(),

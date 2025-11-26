@@ -1,11 +1,13 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { requireAuth } from "./lib/auth";
+import { requireAuth, getAuthOrNull } from "./lib/auth";
 
 export const list = query({
     args: {},
     handler: async (ctx) => {
-        const auth = await requireAuth(ctx);
+        // For queries, return empty if not authenticated (don't throw)
+        const auth = await getAuthOrNull(ctx);
+        if (!auth) return [];
 
         return await ctx.db
             .query("drivers")

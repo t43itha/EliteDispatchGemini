@@ -71,10 +71,10 @@ const App: React.FC = () => {
   const [showLanding, setShowLanding] = useState(!isSignedIn);
   const [currentView, setCurrentView] = useState<'dashboard' | 'bookings' | 'drivers' | 'services' | 'widget_builder'>('dashboard');
 
-  // Check if user needs onboarding
+  // Check if user needs onboarding (runs when signed in, even without org)
   const onboardingStatus = useQuery(
     api.users.needsOnboarding,
-    isSignedIn && orgId ? {} : "skip"
+    isSignedIn ? {} : "skip"
   );
 
   // Convex Queries - only run when signed in, has org, and onboarding complete
@@ -195,8 +195,20 @@ const App: React.FC = () => {
 
   // If signed in, check onboarding status
   if (isSignedIn) {
-    // If we don't have an org selected, or onboarding is needed, show onboarding
-    if (!orgId || onboardingStatus?.needsOnboarding) {
+    // Wait for onboarding status to load
+    if (onboardingStatus === undefined) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+          <div className="text-center">
+            <h1 className="text-3xl font-black text-slate-900 tracking-tighter mb-2">ELITE<span className="text-slate-400 font-light">DISPATCH</span></h1>
+            <p className="text-slate-500">Setting up your account...</p>
+          </div>
+        </div>
+      );
+    }
+    // If no org selected, Convex can't auth (reason="not_signed_in"), or onboarding needed - show onboarding
+    // This lets user create an org in Clerk which will fix the auth issue
+    if (!orgId || onboardingStatus.reason === "not_signed_in" || onboardingStatus.needsOnboarding) {
       return <OnboardingRouter onComplete={() => window.location.reload()} />;
     }
     // Continue to render dashboard below

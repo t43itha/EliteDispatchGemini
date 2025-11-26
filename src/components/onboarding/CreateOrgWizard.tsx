@@ -1,12 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, ArrowRight, Building2, Check, Loader2 } from 'lucide-react';
-import { useOrganizationList, useUser } from '@clerk/clerk-react';
+import { useOrganizationList, useUser, useAuth } from '@clerk/clerk-react';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+
+// Key for storing pending org data
+const PENDING_ORG_KEY = 'elitedispatch_pending_org';
 
 interface CreateOrgWizardProps {
     onBack: () => void;
     onComplete: () => void;
+}
+
+interface PendingOrgData {
+    clerkOrgId: string;
+    name: string;
+    phone?: string;
+    email?: string;
 }
 
 export const CreateOrgWizard: React.FC<CreateOrgWizardProps> = ({
@@ -14,6 +24,7 @@ export const CreateOrgWizard: React.FC<CreateOrgWizardProps> = ({
     onComplete,
 }) => {
     const { user } = useUser();
+    const { orgId } = useAuth();
     const { createOrganization, setActive } = useOrganizationList();
     const createOrg = useMutation(api.organizations.create);
     const createAdmin = useMutation(api.users.createAdmin);
@@ -27,6 +38,68 @@ export const CreateOrgWizard: React.FC<CreateOrgWizardProps> = ({
     const [companyName, setCompanyName] = useState('');
     const [phone, setPhone] = useState('');
     const [email, setEmail] = useState(user?.primaryEmailAddress?.emailAddress || '');
+    const [isCompletingPending, setIsCompletingPending] = useState(false);
+
+    // Check for pending org data on mount (after page reload)
+    useEffect(() => {
+        const completePendingOrg = async () => {
+            const pendingData = localStorage.getItem(PENDING_ORG_KEY);
+            if (!pendingData || !orgId) return;
+
+            setIsCompletingPending(true);
+            setIsLoading(true);
+
+            try {
+                const data: PendingOrgData = JSON.parse(pendingData);
+                console.log('Found pending org data, completing setup:', data);
+
+                // Verify this is the org we created
+                if (data.clerkOrgId !== orgId) {
+                    console.log('Org ID mismatch, skipping pending completion');
+                    localStorage.removeItem(PENDING_ORG_KEY);
+                    setIsCompletingPending(false);
+                    setIsLoading(false);
+                    return;
+                }
+
+                // Create Convex organization record
+                console.log('Creating Convex organization record...');
+                await createOrg({
+                    clerkOrgId: data.clerkOrgId,
+                    name: data.name,
+                    phone: data.phone,
+                    email: data.email,
+                });
+
+                // Create admin user record
+                console.log('Creating admin user record...');
+                await createAdmin({
+                    clerkOrgId: data.clerkOrgId,
+                    email: user?.primaryEmailAddress?.emailAddress || data.email || '',
+                    name: user?.fullName || undefined,
+                });
+
+                // Mark onboarding as complete
+                console.log('Completing onboarding...');
+                await completeOnboarding({});
+
+                // Clear pending data
+                localStorage.removeItem(PENDING_ORG_KEY);
+                console.log('Pending org setup complete!');
+
+                onComplete();
+            } catch (err) {
+                console.error('Failed to complete pending org setup:', err);
+                localStorage.removeItem(PENDING_ORG_KEY);
+                setError('Failed to complete setup. Please try again.');
+            } finally {
+                setIsCompletingPending(false);
+                setIsLoading(false);
+            }
+        };
+
+        completePendingOrg();
+    }, [orgId, createOrg, createAdmin, completeOnboarding, user, onComplete]);
 
     const handleNext = async () => {
         if (step === 1) {
@@ -52,46 +125,57 @@ export const CreateOrgWizard: React.FC<CreateOrgWizardProps> = ({
 
         try {
             // 1. Create Clerk organization
+            console.log('Creating Clerk organization...');
             const clerkOrg = await createOrganization({
                 name: companyName.trim(),
             });
+            console.log('Clerk org created:', clerkOrg.id);
 
-            // 2. Set it as active org
-            await setActive({ organization: clerkOrg.id });
-
-            // Wait a moment for auth to update
-            await new Promise((resolve) => setTimeout(resolve, 500));
-
-            // 3. Create Convex organization record
-            await createOrg({
+            // 2. Store pending org data in localStorage
+            const pendingData: PendingOrgData = {
                 clerkOrgId: clerkOrg.id,
                 name: companyName.trim(),
                 phone: phone.trim() || undefined,
                 email: email.trim() || undefined,
-            });
+            };
+            localStorage.setItem(PENDING_ORG_KEY, JSON.stringify(pendingData));
+            console.log('Stored pending org data');
 
-            // 4. Create admin user record
-            await createAdmin({
-                clerkOrgId: clerkOrg.id,
-                email: user?.primaryEmailAddress?.emailAddress || email,
-                name: user?.fullName || undefined,
-            });
+            // 3. Set it as active org
+            console.log('Setting active organization...');
+            await setActive({ organization: clerkOrg.id });
 
-            // 5. Mark onboarding as complete
-            await completeOnboarding({});
-
-            onComplete();
+            // 4. Reload the page to get a fresh auth token with org_id
+            console.log('Reloading page to sync auth...');
+            window.location.reload();
         } catch (err) {
             console.error('Failed to create organization:', err);
+            localStorage.removeItem(PENDING_ORG_KEY);
             setError(
                 err instanceof Error
                     ? err.message
                     : 'Failed to create organization. Please try again.'
             );
-        } finally {
             setIsLoading(false);
         }
     };
+
+    // Show loading screen while completing pending org setup
+    if (isCompletingPending) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+                <div className="text-center">
+                    <h1 className="text-3xl font-black text-slate-900 tracking-tighter mb-4">
+                        ELITE<span className="text-slate-400 font-light">DISPATCH</span>
+                    </h1>
+                    <div className="flex items-center justify-center gap-3 text-slate-600">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Completing organization setup...</span>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
@@ -106,25 +190,22 @@ export const CreateOrgWizard: React.FC<CreateOrgWizardProps> = ({
                 {/* Progress indicator */}
                 <div className="flex items-center justify-center gap-2 mb-8">
                     <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                            step >= 1
-                                ? 'bg-brand-500 text-white'
-                                : 'bg-slate-200 text-slate-500'
-                        }`}
+                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 1
+                            ? 'bg-brand-500 text-white'
+                            : 'bg-slate-200 text-slate-500'
+                            }`}
                     >
                         {step > 1 ? <Check className="w-4 h-4" /> : '1'}
                     </div>
                     <div
-                        className={`w-12 h-1 rounded ${
-                            step >= 2 ? 'bg-brand-500' : 'bg-slate-200'
-                        }`}
+                        className={`w-12 h-1 rounded ${step >= 2 ? 'bg-brand-500' : 'bg-slate-200'
+                            }`}
                     />
                     <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                            step >= 2
-                                ? 'bg-brand-500 text-white'
-                                : 'bg-slate-200 text-slate-500'
-                        }`}
+                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 2
+                            ? 'bg-brand-500 text-white'
+                            : 'bg-slate-200 text-slate-500'
+                            }`}
                     >
                         2
                     </div>
@@ -194,7 +275,7 @@ export const CreateOrgWizard: React.FC<CreateOrgWizardProps> = ({
                         </div>
                     )}
 
-                    <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
+                    <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-100">
                         <button
                             onClick={step === 1 ? onBack : () => setStep(1)}
                             className="flex items-center gap-2 text-slate-500 hover:text-slate-700 transition-colors"
@@ -206,7 +287,7 @@ export const CreateOrgWizard: React.FC<CreateOrgWizardProps> = ({
                         <button
                             onClick={handleNext}
                             disabled={isLoading}
-                            className="flex items-center gap-2 bg-brand-500 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-brand-600 transition-colors disabled:opacity-50"
+                            className="flex items-center gap-2 bg-brand-500 text-white px-6 py-3 rounded-xl font-semibold hover:bg-brand-600 transition-colors disabled:opacity-50"
                         >
                             {isLoading ? (
                                 <>

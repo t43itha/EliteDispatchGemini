@@ -126,3 +126,22 @@ export const exists = query({
         return !!org;
     },
 });
+
+/**
+ * Debug: Check what identity info we're getting from Convex auth
+ */
+export const debugAuth = query({
+    args: {},
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) {
+            return { authenticated: false, identity: null };
+        }
+        return {
+            authenticated: true,
+            subject: identity.subject,
+            issuer: identity.issuer,
+            tokenIdentifier: identity.tokenIdentifier,
+        };
+    },
+});
