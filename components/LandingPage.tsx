@@ -137,7 +137,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
                       <div className="flex-1 flex justify-center">
                          <div className="bg-slate-100 px-4 py-1 rounded-lg text-[10px] font-bold text-slate-400 flex items-center gap-2">
                             <div className="w-2 h-2 bg-brand-500 rounded-full"></div>
-                            app.elitedispatch.com
+                            app.elitedispatch.app
                          </div>
                       </div>
                    </div>
