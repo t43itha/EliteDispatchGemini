@@ -57,6 +57,46 @@ export default defineSchema({
         email: v.optional(v.string()),
         createdAt: v.number(),
         onboardingComplete: v.boolean(),
+        // Widget configuration for public booking widget
+        widgetConfig: v.optional(v.object({
+            companyName: v.string(),
+            primaryColor: v.string(),
+            currency: v.string(),
+            showMap: v.boolean(),
+            distanceUnit: v.union(v.literal("km"), v.literal("mi"), v.literal("hr")),
+            vehicles: v.object({
+                Business_Class: v.object({
+                    enabled: v.boolean(),
+                    basePrice: v.number(),
+                    pricePerUnit: v.number(),
+                    image: v.string(),
+                    name: v.string(),
+                    description: v.string(),
+                    maxPassengers: v.number(),
+                    maxLuggage: v.number(),
+                }),
+                First_Class: v.object({
+                    enabled: v.boolean(),
+                    basePrice: v.number(),
+                    pricePerUnit: v.number(),
+                    image: v.string(),
+                    name: v.string(),
+                    description: v.string(),
+                    maxPassengers: v.number(),
+                    maxLuggage: v.number(),
+                }),
+                Business_Van: v.object({
+                    enabled: v.boolean(),
+                    basePrice: v.number(),
+                    pricePerUnit: v.number(),
+                    image: v.string(),
+                    name: v.string(),
+                    description: v.string(),
+                    maxPassengers: v.number(),
+                    maxLuggage: v.number(),
+                }),
+            }),
+        })),
     }).index("by_clerk_org_id", ["clerkOrgId"]),
 
     // Users - links Clerk users to orgs with roles

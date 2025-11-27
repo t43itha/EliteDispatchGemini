@@ -106,3 +106,60 @@ export const assignDriver = mutation({
         });
     },
 });
+
+/**
+ * Create a booking from the public widget (no auth required)
+ * Used by embedded booking widgets on external websites
+ */
+export const createFromWidget = mutation({
+    args: {
+        orgId: v.string(), // Clerk org ID from widget URL
+        customerName: v.string(),
+        customerPhone: v.string(),
+        customerEmail: v.optional(v.string()),
+        pickupLocation: v.string(),
+        dropoffLocation: v.string(),
+        pickupTime: v.string(),
+        passengers: v.number(),
+        price: v.number(),
+        vehicleClass: v.optional(v.string()),
+        notes: v.optional(v.string()),
+        distance: v.optional(v.string()),
+        duration: v.optional(v.string()),
+        isReturn: v.optional(v.boolean()),
+        paymentStatus: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        // Verify the organization exists (no auth required)
+        const org = await ctx.db
+            .query("organizations")
+            .withIndex("by_clerk_org_id", (q) =>
+                q.eq("clerkOrgId", args.orgId)
+            )
+            .first();
+
+        if (!org) {
+            throw new Error("Organization not found");
+        }
+
+        // Create the booking
+        return await ctx.db.insert("bookings", {
+            orgId: args.orgId,
+            customerName: args.customerName,
+            customerPhone: args.customerPhone,
+            customerEmail: args.customerEmail,
+            pickupLocation: args.pickupLocation,
+            dropoffLocation: args.dropoffLocation,
+            pickupTime: args.pickupTime,
+            passengers: args.passengers,
+            price: args.price,
+            status: "PENDING",
+            vehicleClass: args.vehicleClass,
+            notes: args.notes,
+            distance: args.distance,
+            duration: args.duration,
+            isReturn: args.isReturn,
+            paymentStatus: args.paymentStatus || "PENDING",
+        });
+    },
+});

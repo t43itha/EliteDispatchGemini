@@ -208,3 +208,120 @@ export const ensureSetup = mutation({
         return { success: true };
     },
 });
+
+// Widget config validator for reuse
+const widgetConfigValidator = v.object({
+    companyName: v.string(),
+    primaryColor: v.string(),
+    currency: v.string(),
+    showMap: v.boolean(),
+    distanceUnit: v.union(v.literal("km"), v.literal("mi"), v.literal("hr")),
+    vehicles: v.object({
+        Business_Class: v.object({
+            enabled: v.boolean(),
+            basePrice: v.number(),
+            pricePerUnit: v.number(),
+            image: v.string(),
+            name: v.string(),
+            description: v.string(),
+            maxPassengers: v.number(),
+            maxLuggage: v.number(),
+        }),
+        First_Class: v.object({
+            enabled: v.boolean(),
+            basePrice: v.number(),
+            pricePerUnit: v.number(),
+            image: v.string(),
+            name: v.string(),
+            description: v.string(),
+            maxPassengers: v.number(),
+            maxLuggage: v.number(),
+        }),
+        Business_Van: v.object({
+            enabled: v.boolean(),
+            basePrice: v.number(),
+            pricePerUnit: v.number(),
+            image: v.string(),
+            name: v.string(),
+            description: v.string(),
+            maxPassengers: v.number(),
+            maxLuggage: v.number(),
+        }),
+    }),
+});
+
+/**
+ * Get widget configuration for the current organization (authenticated)
+ */
+export const getWidgetConfig = query({
+    args: {},
+    handler: async (ctx) => {
+        const auth = await requireAuth(ctx);
+
+        const org = await ctx.db
+            .query("organizations")
+            .withIndex("by_clerk_org_id", (q) =>
+                q.eq("clerkOrgId", auth.orgId)
+            )
+            .first();
+
+        if (!org) throw new Error("Organization not found");
+
+        return {
+            orgId: org.clerkOrgId,
+            config: org.widgetConfig ?? null,
+        };
+    },
+});
+
+/**
+ * Save widget configuration for the current organization (admin only)
+ */
+export const saveWidgetConfig = mutation({
+    args: {
+        config: widgetConfigValidator,
+    },
+    handler: async (ctx, args) => {
+        const auth = await requireAuth(ctx, ["admin"]);
+
+        const org = await ctx.db
+            .query("organizations")
+            .withIndex("by_clerk_org_id", (q) =>
+                q.eq("clerkOrgId", auth.orgId)
+            )
+            .first();
+
+        if (!org) throw new Error("Organization not found");
+
+        await ctx.db.patch(org._id, { widgetConfig: args.config });
+
+        return { success: true };
+    },
+});
+
+/**
+ * Get widget configuration by org ID (PUBLIC - no auth required)
+ * Used by embedded widgets to load configuration
+ */
+export const getPublicWidgetConfig = query({
+    args: { orgId: v.string() },
+    handler: async (ctx, args) => {
+        // No authentication required - this is public
+        const org = await ctx.db
+            .query("organizations")
+            .withIndex("by_clerk_org_id", (q) =>
+                q.eq("clerkOrgId", args.orgId)
+            )
+            .first();
+
+        if (!org) {
+            return null;
+        }
+
+        // Return only safe public data
+        return {
+            companyName: org.widgetConfig?.companyName ?? org.name,
+            config: org.widgetConfig ?? null,
+        };
+    },
+});

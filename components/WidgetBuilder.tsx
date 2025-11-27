@@ -1,10 +1,37 @@
 
 
 
-import React, { useState } from 'react';
-import { Globe, Copy, Check, RefreshCw, Palette, Settings, Car, DollarSign, Image as ImageIcon, Upload, X, PanelLeftClose } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Globe, Copy, Check, RefreshCw, Palette, Settings, Car, DollarSign, Image as ImageIcon, Upload, X, PanelLeftClose, Save, Loader2 } from 'lucide-react';
 import { WidgetConfig, VehicleClass } from '../types';
 import { BookingWidget } from './BookingWidget';
+import { useAuth } from "@clerk/clerk-react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../convex/_generated/api";
+
+// Helper to convert VehicleClass keys to database-safe keys (underscores)
+const toDbKey = (key: string): string => key.replace(/ /g, '_');
+const fromDbKey = (key: string): string => key.replace(/_/g, ' ');
+
+// Convert WidgetConfig for database storage (spaces -> underscores in vehicle keys)
+const configToDb = (config: WidgetConfig) => ({
+  ...config,
+  vehicles: {
+    Business_Class: config.vehicles[VehicleClass.BUSINESS],
+    First_Class: config.vehicles[VehicleClass.FIRST],
+    Business_Van: config.vehicles[VehicleClass.VAN],
+  }
+});
+
+// Convert database config back to WidgetConfig (underscores -> spaces in vehicle keys)
+const configFromDb = (dbConfig: any): WidgetConfig => ({
+  ...dbConfig,
+  vehicles: {
+    [VehicleClass.BUSINESS]: dbConfig.vehicles.Business_Class,
+    [VehicleClass.FIRST]: dbConfig.vehicles.First_Class,
+    [VehicleClass.VAN]: dbConfig.vehicles.Business_Van,
+  }
+});
 
 const DEFAULT_CONFIG: WidgetConfig = {
   companyName: 'EliteDispatch',
@@ -50,9 +77,47 @@ export const WidgetBuilder: React.FC = () => {
   const [config, setConfig] = useState<WidgetConfig>(DEFAULT_CONFIG);
   const [copied, setCopied] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [configLoaded, setConfigLoaded] = useState(false);
+
+  // Get org ID from Clerk
+  const { orgId } = useAuth();
+
+  // Load existing config from database
+  const savedConfig = useQuery(api.organizations.getWidgetConfig);
+  const saveConfigMutation = useMutation(api.organizations.saveWidgetConfig);
+
+  // Initialize config from database when loaded
+  useEffect(() => {
+    if (savedConfig?.config && !configLoaded) {
+      // Convert from database format (underscores) to app format (spaces)
+      setConfig(configFromDb(savedConfig.config));
+      setConfigLoaded(true);
+    }
+  }, [savedConfig, configLoaded]);
+
+  // Handle saving config to database
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveSuccess(false);
+    try {
+      // Convert to database format (underscores) before saving
+      await saveConfigMutation({ config: configToDb(config) });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (error) {
+      console.error("Failed to save config:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Generate embed code with real org ID
+  const widgetBaseUrl = window.location.origin;
+  const embedCode = `<iframe src="${widgetBaseUrl}/widget?id=${orgId || 'YOUR_ID'}" width="100%" height="700" style="border:none;border-radius:24px;"></iframe>`;
 
   const handleCopy = () => {
-    const embedCode = `<iframe src="https://book.elitedispatch.app/widget?id=YOUR_ID&color=${encodeURIComponent(config.primaryColor)}" width="100%" height="700" style="border:none;border-radius:24px;"></iframe>`;
     navigator.clipboard.writeText(embedCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -310,17 +375,59 @@ export const WidgetBuilder: React.FC = () => {
 
             <hr className="border-slate-100" />
 
+            {/* Save Configuration Button */}
+            <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className={`w-full py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                  saveSuccess
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-brand-600 text-white hover:bg-brand-700'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : saveSuccess ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    Saved!
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save Configuration
+                  </>
+                )}
+            </button>
+
             {/* Embed Section */}
             <div className="bg-slate-900 p-5 rounded-2xl text-white">
                 <h3 className="text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
                     <Globe className="w-4 h-4" /> Embed Code
                 </h3>
+                {orgId ? (
+                  <div className="bg-emerald-900/30 border border-emerald-700/50 rounded-lg p-2 mb-3">
+                    <p className="text-[10px] text-emerald-400 font-medium">
+                      Your Widget ID: <span className="font-mono">{orgId}</span>
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-amber-900/30 border border-amber-700/50 rounded-lg p-2 mb-3">
+                    <p className="text-[10px] text-amber-400 font-medium">
+                      Organization not loaded yet...
+                    </p>
+                  </div>
+                )}
                 <div className="bg-slate-800 p-3 rounded-xl text-[10px] font-mono text-slate-300 break-all mb-3 border border-slate-700">
-                    &lt;iframe src="https://book.elitedispatch.app/widget?id=123..." width="100%" height="700"&gt;&lt;/iframe&gt;
+                    {embedCode.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
                 </div>
-                <button 
+                <button
                     onClick={handleCopy}
-                    className="w-full py-2 bg-white text-slate-900 rounded-lg text-xs font-bold hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
+                    disabled={!orgId}
+                    className="w-full py-2 bg-white text-slate-900 rounded-lg text-xs font-bold hover:bg-slate-100 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     {copied ? 'Copied!' : 'Copy Snippet'}
