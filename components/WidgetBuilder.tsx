@@ -52,7 +52,7 @@ export const WidgetBuilder: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const handleCopy = () => {
-    const embedCode = `<iframe src="https://book.elitedispatch.com/widget?id=YOUR_ID&color=${encodeURIComponent(config.primaryColor)}" width="100%" height="700" style="border:none;border-radius:24px;"></iframe>`;
+    const embedCode = `<iframe src="https://book.elitedispatch.app/widget?id=YOUR_ID&color=${encodeURIComponent(config.primaryColor)}" width="100%" height="700" style="border:none;border-radius:24px;"></iframe>`;
     navigator.clipboard.writeText(embedCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -316,7 +316,7 @@ export const WidgetBuilder: React.FC = () => {
                     <Globe className="w-4 h-4" /> Embed Code
                 </h3>
                 <div className="bg-slate-800 p-3 rounded-xl text-[10px] font-mono text-slate-300 break-all mb-3 border border-slate-700">
-                    &lt;iframe src="https://book.elitedispatch.com/widget?id=123..." width="100%" height="700"&gt;&lt;/iframe&gt;
+                    &lt;iframe src="https://book.elitedispatch.app/widget?id=123..." width="100%" height="700"&gt;&lt;/iframe&gt;
                 </div>
                 <button 
                     onClick={handleCopy}
