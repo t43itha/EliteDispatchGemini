@@ -9,6 +9,7 @@
  */
 
 import type * as bookings from "../bookings.js";
+import type * as clerkActions from "../clerkActions.js";
 import type * as drivers from "../drivers.js";
 import type * as invites from "../invites.js";
 import type * as lib_auth from "../lib/auth.js";
@@ -24,6 +25,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   bookings: typeof bookings;
+  clerkActions: typeof clerkActions;
   drivers: typeof drivers;
   invites: typeof invites;
   "lib/auth": typeof lib_auth;

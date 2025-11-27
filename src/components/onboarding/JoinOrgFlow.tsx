@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ArrowLeft, Check, Loader2, Users, AlertCircle } from 'lucide-react';
-import { useUser, useOrganizationList } from '@clerk/clerk-react';
-import { useQuery, useMutation } from 'convex/react';
+import { useUser } from '@clerk/clerk-react';
+import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 
 interface JoinOrgFlowProps {
@@ -14,8 +14,8 @@ export const JoinOrgFlow: React.FC<JoinOrgFlowProps> = ({
     onComplete,
 }) => {
     const { user } = useUser();
-    const { setActive } = useOrganizationList();
     const useInvite = useMutation(api.invites.useInvite);
+    const addMemberToOrg = useAction(api.clerkActions.addMemberToOrg);
 
     const [code, setCode] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -35,7 +35,7 @@ export const JoinOrgFlow: React.FC<JoinOrgFlowProps> = ({
     };
 
     const handleJoin = async () => {
-        if (!validation?.valid || !setActive) return;
+        if (!validation?.valid || !user) return;
 
         setIsLoading(true);
         setError(null);
@@ -51,20 +51,28 @@ export const JoinOrgFlow: React.FC<JoinOrgFlowProps> = ({
                 throw new Error(`This invite is restricted to ${validation.restrictedEmail}`);
             }
 
-            // Use the invite
-            const result = await useInvite({
+            // 1. Add user to Clerk organization first
+            console.log('Adding user to Clerk organization...');
+            const clerkRole = validation.role === 'admin' ? 'org:admin' : 'org:member';
+            await addMemberToOrg({
+                clerkUserId: user.id,
+                clerkOrgId: validation.orgId!,
+                role: clerkRole as "org:member" | "org:admin",
+            });
+            console.log('User added to Clerk org');
+
+            // 2. Use the invite (creates Convex user record)
+            console.log('Creating Convex user record...');
+            await useInvite({
                 code,
                 email,
                 name: user?.fullName || undefined,
             });
+            console.log('Convex user record created');
 
-            // Set active organization in Clerk
-            await setActive({ organization: result.orgId });
-
-            // Small delay for auth to propagate
-            await new Promise((resolve) => setTimeout(resolve, 500));
-
-            onComplete();
+            // 3. Reload to get fresh JWT with org_id
+            console.log('Reloading to sync auth...');
+            window.location.reload();
         } catch (err) {
             console.error('Failed to join organization:', err);
             setError(
@@ -72,7 +80,6 @@ export const JoinOrgFlow: React.FC<JoinOrgFlowProps> = ({
                     ? err.message
                     : 'Failed to join organization. Please try again.'
             );
-        } finally {
             setIsLoading(false);
         }
     };
