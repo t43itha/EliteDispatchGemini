@@ -6,6 +6,7 @@ import { WidgetPage } from './components/WidgetPage';
 
 import { ConvexClientProvider } from './src/components/ConvexClientProvider';
 import { ConvexProvider, ConvexReactClient } from "convex/react";
+import { ThemeProvider, ToastProvider } from './src/providers';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -40,9 +41,13 @@ try {
     // Main app with full authentication
     root.render(
       <React.StrictMode>
-        <ConvexClientProvider>
-          <App />
-        </ConvexClientProvider>
+        <ThemeProvider>
+          <ToastProvider>
+            <ConvexClientProvider>
+              <App />
+            </ConvexClientProvider>
+          </ToastProvider>
+        </ThemeProvider>
       </React.StrictMode>
     );
     console.log("App mounted successfully");

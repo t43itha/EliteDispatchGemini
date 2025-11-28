@@ -19,8 +19,11 @@ import {
   ShoppingBag,
   Receipt,
   Phone,
-  Star
+  Star,
+  Sun,
+  Moon
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import {
   LineChart,
   Line,
@@ -43,24 +46,32 @@ import { DispatchModal } from './components/DispatchModal';
 import { CancelModal } from './components/CancelModal';
 import { ServiceModal } from './components/ServiceModal';
 import { DriverModal } from './components/DriverModal';
-import { LandingPage } from './components/LandingPage';
+import { LandingPageNew as LandingPage } from './components/LandingPageNew';
 import { WidgetBuilder } from './components/WidgetBuilder';
 import { SignInComponent } from './src/components/SignInComponent';
 import { OnboardingRouter } from './src/components/onboarding';
+import { useToast } from './src/providers/ToastProvider';
+import { useTheme } from './src/providers/ThemeProvider';
+import { ThemeToggle } from './src/components/ui/ThemeToggle';
+import { Badge, getBookingStatusVariant, getDriverStatusVariant } from './src/components/ui/Badge';
+import { HeroStat, MiniStat } from './src/components/ui/HeroStat';
+import { AnimatedCounter } from './src/components/ui/AnimatedCounter';
 
 // --- Layout Components ---
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick: () => void }) => (
-  <button
+  <motion.button
     onClick={onClick}
+    whileHover={{ scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
     className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-300 group ${active
       ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/30 font-semibold'
-      : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 font-medium'
+      : 'text-text-secondary hover:bg-background-subtle dark:hover:bg-surface-elevated hover:text-text-primary font-medium'
       }`}
   >
-    <Icon className={`w-5 h-5 transition-transform group-hover:scale-110 ${active ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`} />
+    <Icon className={`w-5 h-5 transition-transform group-hover:scale-110 ${active ? 'text-white' : 'text-text-tertiary group-hover:text-text-secondary'}`} />
     <span>{label}</span>
-  </button>
+  </motion.button>
 );
 
 // --- Main App Component ---
@@ -102,6 +113,9 @@ const App: React.FC = () => {
   const [selectedBookingForDispatch, setSelectedBookingForDispatch] = useState<Booking | null>(null);
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
 
+  // Toast notifications
+  const toast = useToast();
+
   // Computed Stats
   const stats: DashboardStats = useMemo(() => {
     return {
@@ -124,70 +138,93 @@ const App: React.FC = () => {
   ];
 
   const handleCreateBooking = async (newBooking: Booking) => {
-    await createBookingMutation({
-      customerName: newBooking.customerName,
-      customerPhone: newBooking.customerPhone,
-      pickupLocation: newBooking.pickupLocation,
-      dropoffLocation: newBooking.dropoffLocation,
-      pickupTime: newBooking.pickupTime,
-      passengers: newBooking.passengers,
-      price: newBooking.price,
-      notes: newBooking.notes,
-      vehicleClass: newBooking.vehicleClass,
-    });
+    try {
+      await createBookingMutation({
+        customerName: newBooking.customerName,
+        customerPhone: newBooking.customerPhone,
+        pickupLocation: newBooking.pickupLocation,
+        dropoffLocation: newBooking.dropoffLocation,
+        pickupTime: newBooking.pickupTime,
+        passengers: newBooking.passengers,
+        price: newBooking.price,
+        notes: newBooking.notes,
+        vehicleClass: newBooking.vehicleClass,
+      });
+      toast.success('Booking created successfully');
+    } catch (error) {
+      toast.error('Failed to create booking');
+    }
   };
 
   const handleCreateService = async (newService: ServiceRecord) => {
-    await createServiceMutation({
-      date: newService.date,
-      description: newService.description,
-      vendor: newService.vendor,
-      cost: newService.cost,
-      serviceChargePercent: newService.serviceChargePercent,
-      driverId: newService.driverId as any,
-    });
+    try {
+      await createServiceMutation({
+        date: newService.date,
+        description: newService.description,
+        vendor: newService.vendor,
+        cost: newService.cost,
+        serviceChargePercent: newService.serviceChargePercent,
+        driverId: newService.driverId as any,
+      });
+      toast.success('Service record added');
+    } catch (error) {
+      toast.error('Failed to add service record');
+    }
   };
 
   const handleCreateDriver = async (newDriver: Driver) => {
-    await createDriverMutation({
-      name: newDriver.name,
-      phone: newDriver.phone,
-      vehicle: newDriver.vehicle,
-      plate: newDriver.plate,
-      location: newDriver.location,
-      vehicleColour: newDriver.vehicleColour,
-      notes: newDriver.notes,
-    });
+    try {
+      await createDriverMutation({
+        name: newDriver.name,
+        phone: newDriver.phone,
+        vehicle: newDriver.vehicle,
+        plate: newDriver.plate,
+        location: newDriver.location,
+        vehicleColour: newDriver.vehicleColour,
+        notes: newDriver.notes,
+      });
+      toast.success(`${newDriver.name} added to fleet`);
+    } catch (error) {
+      toast.error('Failed to add driver');
+    }
   };
 
   const handleAssignDriver = async (bookingId: string, driverId: string) => {
-    await assignDriverMutation({ id: bookingId as any, driverId: driverId as any });
-    // Driver status update is handled by separate mutation if needed, or we can assume logic in backend.
-    // For now, let's update driver status too to keep UI consistent if backend doesn't do it automatically
-    // Actually, let's just update the driver status manually here for now as per previous logic
-    await updateDriverStatusMutation({ id: driverId as any, status: DriverStatus.BUSY });
+    try {
+      await assignDriverMutation({ id: bookingId as any, driverId: driverId as any });
+      await updateDriverStatusMutation({ id: driverId as any, status: DriverStatus.BUSY });
+      const driver = drivers.find(d => d.id === driverId);
+      toast.whatsapp(`Job dispatched to ${driver?.name || 'driver'}`);
+    } catch (error) {
+      toast.error('Failed to assign driver');
+    }
   };
 
   const handleCancelBooking = async () => {
     if (!bookingToCancel) return;
 
-    await updateBookingStatusMutation({ id: bookingToCancel.id as any, status: BookingStatus.CANCELLED });
+    try {
+      await updateBookingStatusMutation({ id: bookingToCancel.id as any, status: BookingStatus.CANCELLED });
 
-    // If a driver was assigned, free them up
-    if (bookingToCancel.driverId) {
-      await updateDriverStatusMutation({ id: bookingToCancel.driverId as any, status: DriverStatus.AVAILABLE });
+      // If a driver was assigned, free them up
+      if (bookingToCancel.driverId) {
+        await updateDriverStatusMutation({ id: bookingToCancel.driverId as any, status: DriverStatus.AVAILABLE });
+      }
+
+      toast.info('Booking cancelled');
+      setBookingToCancel(null);
+    } catch (error) {
+      toast.error('Failed to cancel booking');
     }
-
-    setBookingToCancel(null);
   };
 
   // Wait for Clerk to load before deciding what to show
   if (!isLoaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <h1 className="text-3xl font-black text-slate-900 tracking-tighter mb-2">ELITE<span className="text-slate-400 font-light">DISPATCH</span></h1>
-          <p className="text-slate-500">Loading...</p>
+          <h1 className="text-3xl font-black text-text-primary tracking-tighter mb-2">ELITE<span className="text-text-tertiary font-light">DISPATCH</span></h1>
+          <p className="text-text-secondary">Loading...</p>
         </div>
       </div>
     );
@@ -198,10 +235,10 @@ const App: React.FC = () => {
     // Wait for onboarding status to load
     if (onboardingStatus === undefined) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="min-h-screen flex items-center justify-center bg-background">
           <div className="text-center">
-            <h1 className="text-3xl font-black text-slate-900 tracking-tighter mb-2">ELITE<span className="text-slate-400 font-light">DISPATCH</span></h1>
-            <p className="text-slate-500">Setting up your account...</p>
+            <h1 className="text-3xl font-black text-text-primary tracking-tighter mb-2">ELITE<span className="text-text-tertiary font-light">DISPATCH</span></h1>
+            <p className="text-text-secondary">Setting up your account...</p>
           </div>
         </div>
       );
@@ -219,98 +256,245 @@ const App: React.FC = () => {
   }
 
   const renderDashboard = () => (
-    <div className="space-y-8 animate-in fade-in duration-700">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-        <StatCard
-          title="Total Revenue"
-          value={`£${stats.revenue.toLocaleString()}`}
-          icon={DollarSign}
-          color="text-emerald-600"
-          trend="+12% vs last week"
-        />
-        <StatCard
-          title="Active Jobs"
-          value={stats.activeJobs}
-          icon={Car}
-          color="text-brand-600"
-        />
-        <StatCard
-          title="Pending Dispatch"
-          value={stats.pendingDispatch}
-          icon={Clock}
-          color="text-amber-600"
-        />
-        <StatCard
-          title="Completed"
-          value={stats.completedToday}
-          icon={CheckCircle}
-          color="text-slate-600"
-        />
-      </div>
+    <div className="space-y-8">
+      {/* ===== HERO SECTION - Revenue dominates ===== */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6 }}
+        className="relative"
+      >
+        {/* Background gradient mesh - creates depth */}
+        <div className="absolute inset-0 -z-10 overflow-hidden rounded-[2rem]">
+          <div className="absolute -top-1/2 -right-1/4 w-[600px] h-[600px] bg-brand-500/20 rounded-full blur-[120px] dark:bg-brand-500/10" />
+          <div className="absolute -bottom-1/4 -left-1/4 w-[400px] h-[400px] bg-emerald-500/15 rounded-full blur-[100px] dark:bg-emerald-500/8" />
+        </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 bg-surface p-8 rounded-3xl shadow-card border border-slate-100/50">
-          <h3 className="font-bold text-xl text-slate-900 mb-6 tracking-tight">Revenue Overview</h3>
-          <div className="h-[300px] w-full">
+        {/* Main hero card */}
+        <div className="relative bg-surface/80 dark:bg-surface/60 backdrop-blur-2xl rounded-[2rem] border border-border p-8 md:p-10 overflow-hidden grain">
+          {/* Decorative grid lines */}
+          <div className="absolute inset-0 opacity-[0.015] dark:opacity-[0.03]" style={{
+            backgroundImage: `linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)`,
+            backgroundSize: '60px 60px'
+          }} />
+
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-end">
+            {/* Revenue - The Hero */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1, duration: 0.5 }}
+              className="lg:col-span-6"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-xs font-bold text-text-tertiary uppercase tracking-[0.2em] font-general">Total Revenue</span>
+                <span className="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  LIVE
+                </span>
+              </div>
+
+              <div className="flex items-baseline gap-3 mb-5">
+                <span className="text-6xl md:text-7xl lg:text-8xl font-clash font-bold tracking-tight text-text-primary">
+                  £<AnimatedCounter value={stats.revenue} className="text-6xl md:text-7xl lg:text-8xl font-clash font-bold" />
+                </span>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-500/20">
+                  <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                  <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">+12.5%</span>
+                </div>
+                <span className="text-sm text-text-tertiary font-medium">vs last week</span>
+              </div>
+            </motion.div>
+
+            {/* Secondary Stats - Compact row */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+              className="lg:col-span-6 grid grid-cols-3 gap-4"
+            >
+              {/* Active Jobs */}
+              <div className="group relative bg-gradient-to-br from-brand-500/5 to-brand-500/0 dark:from-brand-500/10 dark:to-brand-500/5 rounded-2xl p-5 border border-brand-500/10 hover:border-brand-500/30 transition-all duration-300">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 rounded-xl bg-brand-500/10 dark:bg-brand-500/20">
+                    <Car className="w-4 h-4 text-brand-500" />
+                  </div>
+                </div>
+                <div className="text-3xl font-clash font-bold text-text-primary mb-1">
+                  <AnimatedCounter value={stats.activeJobs} />
+                </div>
+                <div className="text-xs font-semibold text-text-tertiary uppercase tracking-wide">Active</div>
+              </div>
+
+              {/* Pending */}
+              <div className="group relative bg-gradient-to-br from-amber-500/5 to-amber-500/0 dark:from-amber-500/10 dark:to-amber-500/5 rounded-2xl p-5 border border-amber-500/10 hover:border-amber-500/30 transition-all duration-300">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 rounded-xl bg-amber-500/10 dark:bg-amber-500/20">
+                    <Clock className="w-4 h-4 text-amber-500" />
+                  </div>
+                </div>
+                <div className="text-3xl font-clash font-bold text-text-primary mb-1">
+                  <AnimatedCounter value={stats.pendingDispatch} />
+                </div>
+                <div className="text-xs font-semibold text-text-tertiary uppercase tracking-wide">Pending</div>
+              </div>
+
+              {/* Completed */}
+              <div className="group relative bg-gradient-to-br from-emerald-500/5 to-emerald-500/0 dark:from-emerald-500/10 dark:to-emerald-500/5 rounded-2xl p-5 border border-emerald-500/10 hover:border-emerald-500/30 transition-all duration-300">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20">
+                    <CheckCircle className="w-4 h-4 text-emerald-500" />
+                  </div>
+                </div>
+                <div className="text-3xl font-clash font-bold text-text-primary mb-1">
+                  <AnimatedCounter value={stats.completedToday} />
+                </div>
+                <div className="text-xs font-semibold text-text-tertiary uppercase tracking-wide">Done</div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* ===== MAIN CONTENT - Asymmetric Bento Grid ===== */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Revenue Chart */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.5 }}
+          className="lg:col-span-8 bg-surface rounded-[1.5rem] border border-border overflow-hidden"
+        >
+          <div className="p-6 pb-4 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-clash font-semibold text-text-primary">Weekly Performance</h3>
+              <p className="text-xs text-text-tertiary mt-0.5">Revenue trend over the past 7 days</p>
+            </div>
+            <div className="flex gap-1 p-1 bg-background-subtle rounded-xl">
+              <button className="px-4 py-2 text-xs font-bold rounded-lg bg-surface text-text-primary shadow-sm">Week</button>
+              <button className="px-4 py-2 text-xs font-medium rounded-lg text-text-tertiary hover:text-text-secondary transition-colors">Month</button>
+            </div>
+          </div>
+          <div className="h-[280px] w-full px-2">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
+              <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.15} />
+                    <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 500 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 500 }} tickFormatter={(val) => `£${val}`} dx={-10} />
+                <CartesianGrid strokeDasharray="0" vertical={false} stroke="rgb(var(--border-default))" strokeOpacity={0.5} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'rgb(var(--text-tertiary))', fontSize: 11, fontWeight: 600 }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'rgb(var(--text-tertiary))', fontSize: 11, fontWeight: 600 }} tickFormatter={(val) => `£${val}`} dx={-5} width={50} />
                 <Tooltip
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px -5px rgba(0, 0, 0, 0.1)', padding: '12px' }}
-                  cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }}
+                  contentStyle={{
+                    background: 'rgb(var(--surface))',
+                    borderRadius: '12px',
+                    border: '1px solid rgb(var(--border-default))',
+                    boxShadow: '0 10px 40px -10px rgba(0, 0, 0, 0.15)',
+                    padding: '12px 16px'
+                  }}
+                  labelStyle={{ color: 'rgb(var(--text-tertiary))', fontSize: '11px', fontWeight: 600, marginBottom: '4px' }}
+                  itemStyle={{ color: 'rgb(var(--text-primary))', fontSize: '14px', fontWeight: 700 }}
+                  cursor={{ stroke: 'rgb(var(--brand-500))', strokeWidth: 1, strokeDasharray: '4 4' }}
                 />
-                <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={4} fillOpacity={1} fill="url(#colorRevenue)" />
+                <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" dot={false} activeDot={{ r: 6, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-surface p-6 rounded-3xl shadow-card border border-slate-100/50">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="font-bold text-xl text-slate-900 tracking-tight">Drivers Status</h3>
-            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">Live</span>
+        {/* Fleet Status */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
+          className="lg:col-span-4 bg-surface rounded-[1.5rem] border border-border overflow-hidden"
+        >
+          <div className="p-5 pb-3 flex justify-between items-center border-b border-border">
+            <h3 className="font-clash font-semibold text-text-primary">Fleet Status</h3>
+            <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              LIVE
+            </span>
           </div>
-          <div className="space-y-3">
-            {drivers.slice(0, 5).map(driver => (
-              <div key={driver.id} className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-2xl transition-colors cursor-default">
-                <div className="flex items-center gap-4">
+          <div className="p-3 space-y-1 max-h-[320px] overflow-y-auto">
+            {drivers.slice(0, 6).map((driver, index) => (
+              <motion.div
+                key={driver.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.5 + index * 0.05 }}
+                className="flex items-center justify-between p-3 hover:bg-background-subtle rounded-xl transition-all cursor-default group"
+              >
+                <div className="flex items-center gap-3">
                   <div className="relative">
-                    <div className={`w-3 h-3 rounded-full border-2 border-white ${driver.status === 'AVAILABLE' ? 'bg-emerald-500' :
-                      driver.status === 'BUSY' ? 'bg-amber-400' : 'bg-slate-400'
-                      }`} />
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold transition-transform group-hover:scale-105 ${
+                      driver.status === 'AVAILABLE' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
+                      driver.status === 'BUSY' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-slate-500/10 text-slate-500'
+                    }`}>
+                      {driver.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                    </div>
+                    <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-surface ${
+                      driver.status === 'AVAILABLE' ? 'bg-emerald-500' :
+                      driver.status === 'BUSY' ? 'bg-amber-500' : 'bg-slate-400'
+                    }`} />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-slate-900">{driver.name}</p>
-                    <p className="text-xs text-slate-500 font-medium">{driver.vehicle}</p>
+                    <p className="text-sm font-semibold text-text-primary leading-tight">{driver.name.split(' ')[0]}</p>
+                    <p className="text-[11px] text-text-tertiary">{driver.vehicle.split(' ').slice(0, 2).join(' ')}</p>
                   </div>
                 </div>
-                <span className={`text-[10px] font-bold px-2 py-1 rounded-lg uppercase tracking-wide ${driver.status === 'AVAILABLE' ? 'bg-emerald-50 text-emerald-600' :
-                  driver.status === 'BUSY' ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-500'
-                  }`}>
-                  {driver.status.replace('_', ' ')}
+                <span className={`text-[10px] font-bold px-2.5 py-1.5 rounded-lg uppercase tracking-wide ${
+                  driver.status === 'AVAILABLE' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
+                  driver.status === 'BUSY' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-slate-500/10 text-slate-500'
+                }`}>
+                  {driver.status === 'AVAILABLE' ? 'Free' : driver.status === 'BUSY' ? 'On Job' : 'Off'}
                 </span>
-              </div>
+              </motion.div>
             ))}
           </div>
-        </div>
+          {drivers.length > 6 && (
+            <div className="p-3 pt-0">
+              <button
+                onClick={() => setCurrentView('drivers')}
+                className="w-full py-3 text-xs font-bold text-brand-500 hover:bg-brand-500/5 rounded-xl transition-all border border-dashed border-brand-500/30 hover:border-brand-500/50"
+              >
+                View all {drivers.length} drivers →
+              </button>
+            </div>
+          )}
+        </motion.div>
       </div>
 
-      <div className="bg-surface rounded-3xl shadow-card border border-slate-100/50 overflow-hidden">
-        <div className="p-6 border-b border-slate-50 flex justify-between items-center">
-          <h3 className="font-bold text-xl text-slate-900 tracking-tight">Recent Bookings</h3>
-          <button onClick={() => setCurrentView('bookings')} className="text-sm text-brand-600 font-bold hover:text-brand-700 hover:text-brand-700 hover:underline">View All</button>
+      {/* ===== RECENT BOOKINGS ===== */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5, duration: 0.5 }}
+        className="bg-surface rounded-[1.5rem] border border-border overflow-hidden"
+      >
+        <div className="p-6 border-b border-border flex justify-between items-center">
+          <div>
+            <h3 className="font-clash font-semibold text-lg text-text-primary">Recent Bookings</h3>
+            <p className="text-xs text-text-tertiary mt-1">Latest dispatch activity</p>
+          </div>
+          <button
+            onClick={() => setCurrentView('bookings')}
+            className="px-4 py-2 text-xs font-bold text-brand-500 hover:bg-brand-500/5 rounded-xl transition-all border border-brand-500/20 hover:border-brand-500/40"
+          >
+            View All →
+          </button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50/50 text-slate-400 uppercase tracking-wider text-xs">
+            <thead className="bg-background-subtle text-text-tertiary uppercase tracking-wider text-xs">
               <tr>
                 <th className="px-8 py-4 font-bold">Customer</th>
                 <th className="px-8 py-4 font-bold">Route</th>
@@ -320,54 +504,54 @@ const App: React.FC = () => {
                 <th className="px-8 py-4 font-bold">Driver</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y divide-border">
               {bookings.slice(0, 5).map(booking => {
                 const assignedDriver = drivers.find(d => d.id === booking.driverId);
                 return (
-                  <tr key={booking.id} className="hover:bg-slate-50/80 transition-colors group">
-                    <td className="px-8 py-5 font-bold text-slate-800">
+                  <tr key={booking.id} className="hover:bg-background-subtle transition-colors group">
+                    <td className="px-8 py-5 font-bold text-text-primary">
                       {booking.customerName}
                       <div className="flex gap-1 mt-1">
-                        {booking.paymentStatus === PaymentStatus.PAID && <span className="text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-md border border-emerald-100">PAID</span>}
-                        {booking.paymentStatus === PaymentStatus.INVOICED && <span className="text-[10px] bg-brand-50 text-brand-600 px-1.5 py-0.5 rounded-md border border-brand-100">XERO</span>}
+                        {booking.paymentStatus === PaymentStatus.PAID && <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950 text-emerald-600 px-1.5 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">PAID</span>}
+                        {booking.paymentStatus === PaymentStatus.INVOICED && <span className="text-[10px] bg-brand-50 dark:bg-brand-950 text-brand-500 px-1.5 py-0.5 rounded-md border border-brand-200 dark:border-brand-800">XERO</span>}
                       </div>
                     </td>
-                    <td className="px-8 py-5 text-slate-500 max-w-[250px]">
+                    <td className="px-8 py-5 text-text-secondary max-w-[250px]">
                       <div className="flex flex-col gap-1">
                         <span className="flex items-center gap-2 text-xs font-medium"><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>{booking.pickupLocation}</span>
                         <span className="flex items-center gap-2 text-xs font-medium"><span className="w-1.5 h-1.5 bg-red-400 rounded-full"></span>{booking.dropoffLocation}</span>
                       </div>
                     </td>
-                    <td className="px-8 py-5 text-slate-600 font-medium">
+                    <td className="px-8 py-5 text-text-secondary font-medium">
                       {new Date(booking.pickupTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                     </td>
-                    <td className="px-8 py-5 text-slate-600">
+                    <td className="px-8 py-5 text-text-secondary">
                       <div className="flex flex-col">
-                        <span className="font-bold text-xs uppercase tracking-wide text-slate-400">{booking.vehicleClass || 'Standard'}</span>
-                        <span className="font-bold text-slate-900">£{booking.price}</span>
+                        <span className="font-bold text-xs uppercase tracking-wide text-text-tertiary">{booking.vehicleClass || 'Standard'}</span>
+                        <span className="font-bold text-text-primary">£{booking.price}</span>
                       </div>
                     </td>
                     <td className="px-8 py-5">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold shadow-sm border ${booking.status === 'PENDING' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                        booking.status === 'ASSIGNED' ? 'bg-brand-50 text-brand-600 border-brand-100' :
-                          booking.status === 'CANCELLED' ? 'bg-slate-50 text-slate-500 border-slate-100' :
-                            'bg-emerald-50 text-emerald-600 border-emerald-100'
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold shadow-sm border ${booking.status === 'PENDING' ? 'bg-amber-50 dark:bg-amber-950 text-amber-600 border-amber-200 dark:border-amber-800' :
+                        booking.status === 'ASSIGNED' ? 'bg-brand-50 dark:bg-brand-950 text-brand-500 border-brand-200 dark:border-brand-800' :
+                          booking.status === 'CANCELLED' ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700' :
+                            'bg-emerald-50 dark:bg-emerald-950 text-emerald-600 border-emerald-200 dark:border-emerald-800'
                         }`}>
                         {booking.status}
                       </span>
                     </td>
-                    <td className="px-8 py-5 text-slate-500">
+                    <td className="px-8 py-5 text-text-secondary">
                       {booking.status === BookingStatus.CANCELLED ? (
-                        <span className="text-xs text-slate-400 font-medium italic">Cancelled</span>
+                        <span className="text-xs text-text-tertiary font-medium italic">Cancelled</span>
                       ) : assignedDriver ? (
                         <span className="flex items-center gap-2">
-                          <div className="w-7 h-7 bg-slate-100 rounded-full flex items-center justify-center text-[10px] font-bold text-slate-600 border border-slate-200">{assignedDriver.name[0]}</div>
-                          <span className="font-semibold text-slate-700 text-sm">{assignedDriver.name.split(' ')[0]}</span>
+                          <div className="w-7 h-7 bg-background-subtle rounded-full flex items-center justify-center text-[10px] font-bold text-text-secondary border border-border">{assignedDriver.name[0]}</div>
+                          <span className="font-semibold text-text-primary text-sm">{assignedDriver.name.split(' ')[0]}</span>
                         </span>
                       ) : (
                         <button
                           onClick={() => setSelectedBookingForDispatch(booking)}
-                          className="text-xs font-bold bg-slate-900 text-white px-4 py-2 rounded-xl hover:bg-slate-800 shadow-md shadow-slate-900/20 transition-all active:scale-95"
+                          className="text-xs font-bold bg-brand-600 text-white px-4 py-2 rounded-xl hover:bg-brand-500 shadow-md shadow-brand-600/20 transition-all active:scale-95"
                         >
                           Assign
                         </button>
@@ -379,7 +563,7 @@ const App: React.FC = () => {
             </tbody>
           </table>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 
@@ -387,13 +571,13 @@ const App: React.FC = () => {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">Dispatch Board</h2>
-          <p className="text-slate-500 font-medium mt-1">Manage active jobs and assignments</p>
+          <h2 className="text-3xl font-clash font-bold text-text-primary tracking-tight">Dispatch Board</h2>
+          <p className="text-text-secondary font-medium mt-1">Manage active jobs and assignments</p>
         </div>
         <div className="flex gap-3">
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input type="text" placeholder="Search..." className="pl-10 pr-4 py-3 bg-white border border-slate-100 rounded-2xl text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 w-64" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary" />
+            <input type="text" placeholder="Search..." className="pl-10 pr-4 py-3 bg-surface border border-border rounded-2xl text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 w-64 text-text-primary placeholder:text-text-tertiary" />
           </div>
         </div>
       </div>
@@ -404,7 +588,7 @@ const App: React.FC = () => {
           const isCancellable = booking.status === BookingStatus.PENDING || booking.status === BookingStatus.ASSIGNED;
 
           return (
-            <div key={booking.id} className={`bg-surface p-6 rounded-3xl border transition-all flex flex-col md:flex-row gap-6 md:items-center justify-between group relative overflow-hidden ${booking.status === BookingStatus.CANCELLED ? 'border-slate-100 opacity-60 bg-slate-50' : 'border-slate-100/50 shadow-card hover:shadow-soft'
+            <div key={booking.id} className={`bg-surface p-6 rounded-3xl border transition-all flex flex-col md:flex-row gap-6 md:items-center justify-between group relative overflow-hidden ${booking.status === BookingStatus.CANCELLED ? 'border-border opacity-60 bg-background-subtle' : 'border-border shadow-card hover:shadow-soft'
               }`}>
               {booking.status === 'PENDING' && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-amber-400" />}
               {booking.status === 'ASSIGNED' && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-brand-500" />}
@@ -414,14 +598,14 @@ const App: React.FC = () => {
               <div className="flex-1 pl-2">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">#{booking.id.substring(0, 6).toUpperCase()}</span>
-                    <span className={`text-lg font-bold tracking-tight ${booking.status === 'CANCELLED' ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
+                    <span className="font-mono text-xs font-bold text-text-tertiary bg-background-subtle px-2 py-1 rounded-md border border-border">#{booking.id.substring(0, 6).toUpperCase()}</span>
+                    <span className={`text-lg font-bold tracking-tight ${booking.status === 'CANCELLED' ? 'text-text-tertiary line-through' : 'text-text-primary'}`}>
                       {booking.customerName}
                     </span>
                     <div className="flex gap-1">
-                      <span className="text-[10px] font-bold bg-slate-100 px-2 py-1 rounded-md text-slate-500 uppercase">{booking.passengers} pax</span>
-                      {booking.paymentStatus === PaymentStatus.PAID && <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-1 rounded-md font-bold border border-emerald-100">PAID</span>}
-                      {booking.paymentStatus === PaymentStatus.INVOICED && <span className="text-[10px] bg-brand-50 text-brand-600 px-2 py-1 rounded-md font-bold border border-brand-100">XERO</span>}
+                      <span className="text-[10px] font-bold bg-background-subtle px-2 py-1 rounded-md text-text-tertiary uppercase">{booking.passengers} pax</span>
+                      {booking.paymentStatus === PaymentStatus.PAID && <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-md font-bold border border-emerald-200 dark:border-emerald-800">PAID</span>}
+                      {booking.paymentStatus === PaymentStatus.INVOICED && <span className="text-[10px] bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400 px-2 py-1 rounded-md font-bold border border-brand-200 dark:border-brand-800">XERO</span>}
                     </div>
                   </div>
                   {isCancellable && (
@@ -430,19 +614,19 @@ const App: React.FC = () => {
                         e.stopPropagation();
                         setBookingToCancel(booking);
                       }}
-                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors md:hidden"
+                      className="p-2 text-text-tertiary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950 rounded-full transition-colors md:hidden"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
                 </div>
                 <div className="grid md:grid-cols-2 gap-3 text-sm">
-                  <div className="flex items-center gap-3 text-slate-600 bg-slate-50/50 p-2 rounded-xl">
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${booking.status === 'CANCELLED' ? 'bg-slate-300' : 'bg-emerald-400'}`} />
+                  <div className="flex items-center gap-3 text-text-secondary bg-background-subtle p-2 rounded-xl">
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${booking.status === 'CANCELLED' ? 'bg-slate-400' : 'bg-emerald-400'}`} />
                     <span className="truncate font-medium">{booking.pickupLocation}</span>
                   </div>
-                  <div className="flex items-center gap-3 text-slate-600 bg-slate-50/50 p-2 rounded-xl">
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${booking.status === 'CANCELLED' ? 'bg-slate-300' : 'bg-red-400'}`} />
+                  <div className="flex items-center gap-3 text-text-secondary bg-background-subtle p-2 rounded-xl">
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${booking.status === 'CANCELLED' ? 'bg-slate-400' : 'bg-red-400'}`} />
                     <span className="truncate font-medium">{booking.dropoffLocation}</span>
                   </div>
                 </div>
@@ -450,11 +634,11 @@ const App: React.FC = () => {
 
               <div className="flex items-center justify-between md:justify-end gap-8 mt-2 md:mt-0">
                 <div className="text-left md:text-right">
-                  <div className="flex items-center gap-2 text-slate-900 font-bold text-lg">
-                    <Clock className="w-4 h-4 text-slate-400" />
+                  <div className="flex items-center gap-2 text-text-primary font-bold text-lg">
+                    <Clock className="w-4 h-4 text-text-tertiary" />
                     {new Date(booking.pickupTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                   </div>
-                  <div className="text-xs font-medium text-slate-500">
+                  <div className="text-xs font-medium text-text-tertiary">
                     {new Date(booking.pickupTime).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
                   </div>
                 </div>
@@ -463,22 +647,22 @@ const App: React.FC = () => {
                   {booking.status === 'PENDING' ? (
                     <button
                       onClick={() => setSelectedBookingForDispatch(booking)}
-                      className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 active:scale-95"
+                      className="bg-text-primary text-background px-6 py-3 rounded-2xl font-bold text-sm hover:opacity-90 transition-all shadow-lg active:scale-95"
                     >
                       Dispatch
                     </button>
                   ) : booking.status === 'CANCELLED' ? (
-                    <span className="text-xs font-bold text-slate-400 bg-slate-100 px-4 py-2 rounded-xl border border-slate-200">
+                    <span className="text-xs font-bold text-text-tertiary bg-background-subtle px-4 py-2 rounded-xl border border-border">
                       CANCELLED
                     </span>
                   ) : (
-                    <div className="flex items-center gap-3 bg-slate-50 pl-2 pr-5 py-2 rounded-full border border-slate-200">
-                      <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-700 shadow-sm">
+                    <div className="flex items-center gap-3 bg-background-subtle pl-2 pr-5 py-2 rounded-full border border-border">
+                      <div className="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center text-xs font-bold text-text-secondary shadow-sm">
                         {assignedDriver?.name[0]}
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-xs font-bold text-slate-900">{assignedDriver?.name.split(' ')[0]}</span>
-                        <span className="text-[10px] text-slate-500 uppercase tracking-wide font-bold">On Job</span>
+                        <span className="text-xs font-bold text-text-primary">{assignedDriver?.name.split(' ')[0]}</span>
+                        <span className="text-[10px] text-text-tertiary uppercase tracking-wide font-bold">On Job</span>
                       </div>
                     </div>
                   )}
@@ -489,7 +673,7 @@ const App: React.FC = () => {
                         e.stopPropagation();
                         setBookingToCancel(booking);
                       }}
-                      className="hidden md:block p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-colors border border-transparent hover:border-red-100"
+                      className="hidden md:block p-3 text-text-tertiary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950 rounded-2xl transition-colors border border-transparent hover:border-red-200 dark:hover:border-red-800"
                       title="Cancel Booking"
                     >
                       <Trash2 className="w-5 h-5" />
@@ -508,14 +692,14 @@ const App: React.FC = () => {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">Services & Concierge</h2>
-          <p className="text-slate-500 font-medium mt-1">Track driver purchases and service charges</p>
+          <h2 className="text-3xl font-clash font-bold text-text-primary tracking-tight">Services & Concierge</h2>
+          <p className="text-text-secondary font-medium mt-1">Track driver purchases and service charges</p>
         </div>
       </div>
 
-      <div className="bg-surface rounded-3xl border border-slate-100/50 shadow-card overflow-hidden">
+      <div className="bg-surface rounded-3xl border border-border shadow-card overflow-hidden">
         <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50/50 text-slate-400 uppercase tracking-wider text-xs">
+          <thead className="bg-background-subtle text-text-tertiary uppercase tracking-wider text-xs">
             <tr>
               <th className="px-8 py-5 font-bold">Date</th>
               <th className="px-8 py-5 font-bold">Description</th>
@@ -527,29 +711,29 @@ const App: React.FC = () => {
               <th className="px-8 py-5 font-bold">Status</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50">
+          <tbody className="divide-y divide-border">
             {services.map(service => {
               const driver = drivers.find(d => d.id === service.driverId);
               return (
-                <tr key={service.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="px-8 py-5 text-slate-500 font-medium">{new Date(service.date).toLocaleDateString('en-GB')}</td>
-                  <td className="px-8 py-5 font-bold text-slate-900">{service.description}</td>
-                  <td className="px-8 py-5 text-slate-600 font-medium">{service.vendor}</td>
-                  <td className="px-8 py-5 text-slate-600 font-medium">£{service.cost.toFixed(2)}</td>
-                  <td className="px-8 py-5 text-accent-600 font-bold">+£{service.serviceFee.toFixed(2)} <span className="text-xs font-normal text-slate-400 ml-1">({service.serviceChargePercent}%)</span></td>
-                  <td className="px-8 py-5 font-black text-slate-900">£{service.total.toFixed(2)}</td>
-                  <td className="px-8 py-5 text-slate-500">
+                <tr key={service.id} className="hover:bg-background-subtle transition-colors">
+                  <td className="px-8 py-5 text-text-tertiary font-medium">{new Date(service.date).toLocaleDateString('en-GB')}</td>
+                  <td className="px-8 py-5 font-bold text-text-primary">{service.description}</td>
+                  <td className="px-8 py-5 text-text-secondary font-medium">{service.vendor}</td>
+                  <td className="px-8 py-5 text-text-secondary font-medium">£{service.cost.toFixed(2)}</td>
+                  <td className="px-8 py-5 text-accent-600 dark:text-accent-400 font-bold">+£{service.serviceFee.toFixed(2)} <span className="text-xs font-normal text-text-tertiary ml-1">({service.serviceChargePercent}%)</span></td>
+                  <td className="px-8 py-5 font-black text-text-primary">£{service.total.toFixed(2)}</td>
+                  <td className="px-8 py-5 text-text-tertiary">
                     {driver ? (
                       <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center text-[10px] font-bold">{driver.name[0]}</div>
-                        <span className="text-xs font-bold">{driver.name.split(' ')[0]}</span>
+                        <div className="w-6 h-6 bg-background-subtle rounded-full flex items-center justify-center text-[10px] font-bold text-text-secondary">{driver.name[0]}</div>
+                        <span className="text-xs font-bold text-text-primary">{driver.name.split(' ')[0]}</span>
                       </div>
-                    ) : <span className="text-xs italic text-slate-400">Unassigned</span>}
+                    ) : <span className="text-xs italic text-text-tertiary">Unassigned</span>}
                   </td>
                   <td className="px-8 py-5">
-                    <span className={`text-xs px-3 py-1 rounded-full font-bold border ${service.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                      service.status === 'PAID' ? 'bg-brand-50 text-brand-700 border-brand-100' :
-                        'bg-amber-50 text-amber-700 border-amber-100'
+                    <span className={`text-xs px-3 py-1 rounded-full font-bold border ${service.status === 'COMPLETED' ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800' :
+                      service.status === 'PAID' ? 'bg-brand-50 dark:bg-brand-950 text-brand-700 dark:text-brand-400 border-brand-200 dark:border-brand-800' :
+                        'bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800'
                       }`}>
                       {service.status}
                     </span>
@@ -560,7 +744,7 @@ const App: React.FC = () => {
           </tbody>
         </table>
         {services.length === 0 && (
-          <div className="p-12 text-center text-slate-400">
+          <div className="p-12 text-center text-text-tertiary">
             <ShoppingBag className="w-12 h-12 mx-auto mb-3 opacity-20" />
             <p className="font-medium">No service records yet.</p>
           </div>
@@ -573,59 +757,59 @@ const App: React.FC = () => {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">Fleet Management</h2>
-          <p className="text-slate-500 font-medium mt-1">Manage your drivers, vehicles, and availability</p>
+          <h2 className="text-3xl font-clash font-bold text-text-primary tracking-tight">Fleet Management</h2>
+          <p className="text-text-secondary font-medium mt-1">Manage your drivers, vehicles, and availability</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {drivers.map(driver => (
-          <div key={driver.id} className="bg-surface rounded-3xl border border-slate-100 shadow-card p-6 hover:shadow-soft transition-all group cursor-default">
+          <div key={driver.id} className="bg-surface rounded-3xl border border-border shadow-card p-6 hover:shadow-soft transition-all group cursor-default">
             <div className="flex justify-between items-start mb-6">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-600 font-bold text-xl flex items-center justify-center shadow-inner">
+                <div className="w-14 h-14 rounded-2xl bg-background-subtle text-text-secondary font-bold text-xl flex items-center justify-center">
                   {driver.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 text-lg leading-tight">{driver.name}</h3>
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
+                  <h3 className="font-bold text-text-primary text-lg leading-tight">{driver.name}</h3>
+                  <div className="flex items-center gap-1.5 text-xs text-text-tertiary mt-1">
                     <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                    <span className="font-bold text-slate-700">{driver.rating}</span>
-                    <span className="text-slate-300">•</span>
+                    <span className="font-bold text-text-secondary">{driver.rating}</span>
+                    <span className="text-text-muted">•</span>
                     <span className="font-medium">{driver.location}</span>
                   </div>
                 </div>
               </div>
-              <span className={`px-3 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider border ${driver.status === DriverStatus.AVAILABLE ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                driver.status === DriverStatus.BUSY ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                  'bg-slate-50 text-slate-500 border-slate-100'
+              <span className={`px-3 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider border ${driver.status === DriverStatus.AVAILABLE ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800' :
+                driver.status === DriverStatus.BUSY ? 'bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800' :
+                  'bg-background-subtle text-text-tertiary border-border'
                 }`}>
                 {driver.status.replace('_', ' ')}
               </span>
             </div>
 
             <div className="space-y-3 mb-6">
-              <div className="flex items-center justify-between text-sm p-3 bg-slate-50/80 rounded-2xl border border-slate-100">
-                <div className="flex items-center gap-3 text-slate-700">
-                  <Car className="w-4 h-4 text-slate-400" />
+              <div className="flex items-center justify-between text-sm p-3 bg-background-subtle rounded-2xl border border-border">
+                <div className="flex items-center gap-3 text-text-secondary">
+                  <Car className="w-4 h-4 text-text-tertiary" />
                   <span className="font-bold">{driver.vehicle}</span>
                 </div>
-                <div className="text-slate-500 text-xs font-medium bg-white px-2 py-1 rounded-lg border border-slate-100 shadow-sm">{driver.vehicleColour} • {driver.plate}</div>
+                <div className="text-text-tertiary text-xs font-medium bg-surface px-2 py-1 rounded-lg border border-border shadow-sm">{driver.vehicleColour} • {driver.plate}</div>
               </div>
-              <div className="flex items-center gap-3 text-sm text-slate-600 p-3 bg-slate-50/80 rounded-2xl border border-slate-100">
-                <Phone className="w-4 h-4 text-slate-400" />
+              <div className="flex items-center gap-3 text-sm text-text-secondary p-3 bg-background-subtle rounded-2xl border border-border">
+                <Phone className="w-4 h-4 text-text-tertiary" />
                 <span className="font-medium tracking-wide">{driver.phone}</span>
               </div>
             </div>
 
             {driver.notes && (
-              <div className="text-xs text-slate-500 bg-amber-50/50 border border-amber-100 p-3 rounded-xl italic mb-6">
+              <div className="text-xs text-text-secondary bg-amber-50/50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 rounded-xl italic mb-6">
                 "{driver.notes}"
               </div>
             )}
 
             <div className="flex gap-3">
-              <button className="flex-1 py-3 text-xs font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors shadow-sm">
+              <button className="flex-1 py-3 text-xs font-bold text-text-secondary bg-surface border border-border hover:bg-background-subtle rounded-xl transition-colors shadow-sm">
                 Edit Profile
               </button>
               <button
@@ -642,16 +826,16 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background flex font-sans text-slate-900">
+    <div className="min-h-screen bg-background flex font-sans text-text-primary">
       {/* Sidebar (Desktop) */}
-      <div className="hidden md:flex w-72 bg-surface border-r border-slate-100 flex-col fixed h-full z-10 shadow-soft">
+      <div className="hidden md:flex w-72 bg-surface border-r border-border flex-col fixed h-full z-10 shadow-soft">
         <div className="p-8">
-          <h1 className="text-2xl font-black text-slate-900 tracking-tighter flex items-center gap-3">
+          <h1 className="text-2xl font-black text-text-primary tracking-tighter flex items-center gap-3">
             <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center shadow-lg shadow-brand-500/40">
               <Car className="text-white w-6 h-6" />
             </div>
             <div>
-              ELITE<span className="text-slate-400 font-light">DISPATCH</span>
+              ELITE<span className="text-text-tertiary font-light">DISPATCH</span>
             </div>
           </h1>
         </div>
@@ -663,10 +847,10 @@ const App: React.FC = () => {
           <SidebarItem icon={ShoppingBag} label="Concierge" active={currentView === 'services'} onClick={() => setCurrentView('services')} />
         </nav>
 
-        <div className="p-6 border-t border-slate-50">
+        <div className="p-6 border-t border-border">
           <button
             onClick={() => setCurrentView('widget_builder')}
-            className={`flex items-center gap-2 px-4 py-3 mb-5 text-xs font-bold rounded-2xl w-full justify-center transition-colors border ${currentView === 'widget_builder' ? 'bg-brand-600 text-white border-brand-600 shadow-lg' : 'bg-brand-50 text-brand-700 border-brand-100 hover:bg-brand-100'}`}
+            className={`flex items-center gap-2 px-4 py-3 mb-5 text-xs font-bold rounded-2xl w-full justify-center transition-colors border ${currentView === 'widget_builder' ? 'bg-brand-600 text-white border-brand-600 shadow-lg' : 'bg-brand-50 text-brand-700 border-brand-100 hover:bg-brand-100 dark:bg-brand-900/30 dark:text-brand-400 dark:border-brand-800 dark:hover:bg-brand-900/50'}`}
           >
             <Globe className="w-4 h-4" />
             Booking Widget
@@ -677,31 +861,35 @@ const App: React.FC = () => {
               appearance={{
                 elements: {
                   rootBox: "w-full",
-                  organizationSwitcherTrigger: "w-full px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-sm font-bold text-slate-700 flex justify-between"
+                  organizationSwitcherTrigger: "w-full px-3 py-2 rounded-xl border border-border hover:bg-background-subtle text-sm font-bold text-text-primary flex justify-between"
                 }
               }}
             />
           </div>
 
-          <div className="flex items-center gap-3 px-2 py-2">
-            <UserButton afterSignOutUrl="/" />
-            <div className="flex flex-col">
-              <span className="text-xs font-bold text-slate-900">My Account</span>
-              <span className="text-[10px] text-slate-500">Manage Profile</span>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3 px-2 py-2">
+              <UserButton afterSignOutUrl="/" />
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-text-primary">My Account</span>
+                <span className="text-[10px] text-text-tertiary">Manage Profile</span>
+              </div>
             </div>
+            <ThemeToggle variant="compact" />
           </div>
         </div>
       </div>
 
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 bg-surface z-20 px-4 py-3 border-b border-slate-100 flex justify-between items-center shadow-sm">
+      <div className="md:hidden fixed top-0 left-0 right-0 bg-surface z-20 px-4 py-3 border-b border-border flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 bg-brand-600 rounded-xl flex items-center justify-center shadow-lg shadow-brand-500/30">
             <Car className="text-white w-5 h-5" />
           </div>
-          <span className="font-black text-lg tracking-tight">ELITE</span>
+          <span className="font-black text-lg tracking-tight text-text-primary">ELITE</span>
         </div>
         <div className="flex items-center gap-3">
+          <ThemeToggle variant="compact" />
           <OrganizationSwitcher />
           <UserButton />
         </div>
@@ -736,20 +924,20 @@ const App: React.FC = () => {
       </button>
 
       {/* Mobile Bottom Nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-slate-100 px-6 py-3 flex justify-between items-center z-30 pb-safe">
-        <button onClick={() => setCurrentView('dashboard')} className={`flex flex-col items-center gap-1 ${currentView === 'dashboard' ? 'text-brand-600' : 'text-slate-400'}`}>
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-border px-6 py-3 flex justify-between items-center z-30 pb-safe">
+        <button onClick={() => setCurrentView('dashboard')} className={`flex flex-col items-center gap-1 ${currentView === 'dashboard' ? 'text-brand-600' : 'text-text-tertiary'}`}>
           <LayoutDashboard className={`w-6 h-6 ${currentView === 'dashboard' ? 'fill-brand-100' : ''}`} />
           <span className="text-[10px] font-bold">Home</span>
         </button>
-        <button onClick={() => setCurrentView('bookings')} className={`flex flex-col items-center gap-1 ${currentView === 'bookings' ? 'text-brand-600' : 'text-slate-400'}`}>
+        <button onClick={() => setCurrentView('bookings')} className={`flex flex-col items-center gap-1 ${currentView === 'bookings' ? 'text-brand-600' : 'text-text-tertiary'}`}>
           <CalendarPlus className={`w-6 h-6 ${currentView === 'bookings' ? 'fill-brand-100' : ''}`} />
           <span className="text-[10px] font-bold">Dispatch</span>
         </button>
-        <button onClick={() => setCurrentView('services')} className={`flex flex-col items-center gap-1 ${currentView === 'services' ? 'text-accent-600' : 'text-slate-400'}`}>
+        <button onClick={() => setCurrentView('services')} className={`flex flex-col items-center gap-1 ${currentView === 'services' ? 'text-accent-600' : 'text-text-tertiary'}`}>
           <ShoppingBag className={`w-6 h-6 ${currentView === 'services' ? 'fill-accent-100' : ''}`} />
           <span className="text-[10px] font-bold">Concierge</span>
         </button>
-        <button onClick={() => setCurrentView('drivers')} className={`flex flex-col items-center gap-1 ${currentView === 'drivers' ? 'text-brand-600' : 'text-slate-400'}`}>
+        <button onClick={() => setCurrentView('drivers')} className={`flex flex-col items-center gap-1 ${currentView === 'drivers' ? 'text-brand-600' : 'text-text-tertiary'}`}>
           <Users className={`w-6 h-6 ${currentView === 'drivers' ? 'fill-brand-100' : ''}`} />
           <span className="text-[10px] font-bold">Drivers</span>
         </button>
