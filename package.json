@@ -11,13 +11,15 @@
   "dependencies": {
     "@clerk/clerk-react": "^5.57.0",
     "@google/genai": "^1.30.0",
+    "clsx": "^2.1.1",
     "convex": "^1.29.3",
     "convex-helpers": "^0.1.106",
     "framer-motion": "^11.0.8",
     "lucide-react": "^0.554.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "recharts": "^3.4.1"
+    "recharts": "^3.4.1",
+    "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
