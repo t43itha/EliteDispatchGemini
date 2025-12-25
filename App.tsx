@@ -56,6 +56,8 @@ import { ThemeToggle } from './src/components/ui/ThemeToggle';
 import { Badge, getBookingStatusVariant, getDriverStatusVariant } from './src/components/ui/Badge';
 import { HeroStat, MiniStat } from './src/components/ui/HeroStat';
 import { AnimatedCounter } from './src/components/ui/AnimatedCounter';
+import { XeroInvoiceModal } from './components/XeroInvoiceModal';
+import { XeroConnectionCard } from './components/XeroConnectionCard';
 
 // --- Layout Components ---
 
@@ -115,6 +117,15 @@ const App: React.FC = () => {
 
   // Toast notifications
   const toast = useToast();
+
+  // Xero Invoice state
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [selectedBookingIdsForInvoice, setSelectedBookingIdsForInvoice] = useState<string[]>([]);
+
+  const handleOpenInvoiceModal = (bookingIds: string[]) => {
+    setSelectedBookingIdsForInvoice(bookingIds);
+    setIsInvoiceModalOpen(true);
+  };
 
   // Computed Stats
   const stats: DashboardStats = useMemo(() => {
@@ -602,10 +613,22 @@ const App: React.FC = () => {
                     <span className={`text-lg font-bold tracking-tight ${booking.status === 'CANCELLED' ? 'text-text-tertiary line-through' : 'text-text-primary'}`}>
                       {booking.customerName}
                     </span>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 items-center">
                       <span className="text-[10px] font-bold bg-background-subtle px-2 py-1 rounded-md text-text-tertiary uppercase">{booking.passengers} pax</span>
                       {booking.paymentStatus === PaymentStatus.PAID && <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-md font-bold border border-emerald-200 dark:border-emerald-800">PAID</span>}
                       {booking.paymentStatus === PaymentStatus.INVOICED && <span className="text-[10px] bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400 px-2 py-1 rounded-md font-bold border border-brand-200 dark:border-brand-800">XERO</span>}
+                      {booking.status === BookingStatus.COMPLETED && booking.paymentStatus !== PaymentStatus.INVOICED && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenInvoiceModal([booking.id]);
+                          }}
+                          className="text-[10px] bg-[#13B5EA]/10 text-[#13B5EA] hover:bg-[#13B5EA]/20 px-2 py-1 rounded-md font-bold border border-[#13B5EA]/20 transition-colors flex items-center gap-1"
+                        >
+                          <Receipt className="w-3 h-3" />
+                          Invoice
+                        </button>
+                      )}
                     </div>
                   </div>
                   {isCancellable && (
@@ -848,6 +871,11 @@ const App: React.FC = () => {
         </nav>
 
         <div className="p-6 border-t border-border">
+          {/* Xero Connection Status */}
+          <div className="mb-4">
+            <XeroConnectionCard compact />
+          </div>
+
           <button
             onClick={() => setCurrentView('widget_builder')}
             className={`flex items-center gap-2 px-4 py-3 mb-5 text-xs font-bold rounded-2xl w-full justify-center transition-colors border ${currentView === 'widget_builder' ? 'bg-brand-600 text-white border-brand-600 shadow-lg' : 'bg-brand-50 text-brand-700 border-brand-100 hover:bg-brand-100 dark:bg-brand-900/30 dark:text-brand-400 dark:border-brand-800 dark:hover:bg-brand-900/50'}`}
@@ -973,6 +1001,16 @@ const App: React.FC = () => {
         isOpen={isDriverModalOpen}
         onClose={() => setIsDriverModalOpen(false)}
         onCreate={handleCreateDriver}
+      />
+
+      <XeroInvoiceModal
+        isOpen={isInvoiceModalOpen}
+        onClose={() => {
+          setIsInvoiceModalOpen(false);
+          setSelectedBookingIdsForInvoice([]);
+        }}
+        preSelectedBookingIds={selectedBookingIdsForInvoice}
+        bookings={bookings}
       />
     </div>
   );
