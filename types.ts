@@ -76,6 +76,11 @@ export interface Booking {
   distance?: string;
   duration?: string;
   isReturn?: boolean;
+  // WhatsApp notification tracking
+  whatsappCustomerNotified?: boolean;
+  whatsappDriverNotified?: boolean;
+  whatsappDriverAccepted?: boolean;
+  whatsappDriverAcceptedAt?: number;
 }
 
 export interface ServiceRecord {

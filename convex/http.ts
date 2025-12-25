@@ -1,8 +1,13 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
+import { MessageStatus } from "./whatsapp/twilio";
 
 const http = httpRouter();
+
+// =====================================================
+// Xero OAuth Endpoints
+// =====================================================
 
 /**
  * Xero OAuth2 callback handler
@@ -208,5 +213,144 @@ async function getXeroTenants(accessToken: string): Promise<{
         return { success: false, tenants: [], error: "Failed to fetch Xero organizations" };
     }
 }
+
+// =====================================================
+// WhatsApp Webhook Endpoints
+// =====================================================
+
+/**
+ * Webhook endpoint for incoming WhatsApp messages from drivers
+ * URL: POST /whatsapp/webhook/incoming
+ *
+ * Configure in Twilio Console:
+ * When a message comes in: https://your-deployment.convex.site/whatsapp/webhook/incoming
+ */
+http.route({
+    path: "/whatsapp/webhook/incoming",
+    method: "POST",
+    handler: httpAction(async (ctx, request) => {
+        try {
+            // Parse form data from Twilio
+            const formData = await request.formData();
+            const params: Record<string, string> = {};
+            formData.forEach((value, key) => {
+                params[key] = value.toString();
+            });
+
+            // Extract key fields
+            const from = params["From"]?.replace("whatsapp:", "") || "";
+            const body = params["Body"] || "";
+            const messageSid = params["MessageSid"] || "";
+
+            console.log(`Incoming WhatsApp message from ${from}: ${body}`);
+
+            // Process the incoming message through the state machine
+            await ctx.runAction(api.whatsapp.stateMachine.processIncomingMessage, {
+                phone: from,
+                messageBody: body,
+                twilioSid: messageSid,
+            });
+
+            // Return empty TwiML response
+            return new Response(
+                `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
+                {
+                    status: 200,
+                    headers: { "Content-Type": "text/xml" },
+                }
+            );
+        } catch (error) {
+            console.error("Error processing incoming WhatsApp message:", error);
+            return new Response(
+                `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
+                { status: 200, headers: { "Content-Type": "text/xml" } }
+            );
+        }
+    }),
+});
+
+/**
+ * Webhook endpoint for message status callbacks
+ * URL: POST /whatsapp/webhook/status
+ *
+ * Configure in Twilio Console:
+ * Status callback URL: https://your-deployment.convex.site/whatsapp/webhook/status
+ */
+http.route({
+    path: "/whatsapp/webhook/status",
+    method: "POST",
+    handler: httpAction(async (ctx, request) => {
+        try {
+            const formData = await request.formData();
+            const params: Record<string, string> = {};
+            formData.forEach((value, key) => {
+                params[key] = value.toString();
+            });
+
+            const messageSid = params["MessageSid"] || "";
+            const messageStatus = params["MessageStatus"] || "";
+            const errorCode = params["ErrorCode"];
+            const errorMessage = params["ErrorMessage"];
+
+            console.log(`Message ${messageSid} status: ${messageStatus}`);
+
+            // Map Twilio status to our status
+            let status = MessageStatus.QUEUED;
+            switch (messageStatus.toLowerCase()) {
+                case "queued":
+                case "accepted":
+                    status = MessageStatus.QUEUED;
+                    break;
+                case "sent":
+                    status = MessageStatus.SENT;
+                    break;
+                case "delivered":
+                    status = MessageStatus.DELIVERED;
+                    break;
+                case "read":
+                    status = MessageStatus.READ;
+                    break;
+                case "failed":
+                case "undelivered":
+                    status = MessageStatus.FAILED;
+                    break;
+            }
+
+            // Update message status in database
+            await ctx.runMutation(api.whatsapp.config.updateMessageStatus, {
+                twilioSid: messageSid,
+                status,
+                errorMessage: errorMessage || (errorCode ? `Error code: ${errorCode}` : undefined),
+            });
+
+            return new Response("OK", { status: 200 });
+        } catch (error) {
+            console.error("Error processing status callback:", error);
+            return new Response("OK", { status: 200 });
+        }
+    }),
+});
+
+/**
+ * Health check endpoint
+ * URL: GET /whatsapp/health
+ */
+http.route({
+    path: "/whatsapp/health",
+    method: "GET",
+    handler: httpAction(async () => {
+        return new Response(
+            JSON.stringify({
+                status: "ok",
+                timestamp: new Date().toISOString(),
+                service: "whatsapp-webhooks",
+            }),
+            {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+            }
+        );
+    }),
+});
 
 export default http;

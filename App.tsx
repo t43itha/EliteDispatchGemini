@@ -48,6 +48,7 @@ import { ServiceModal } from './components/ServiceModal';
 import { DriverModal } from './components/DriverModal';
 import { LandingPageNew as LandingPage } from './components/LandingPageNew';
 import { WidgetBuilder } from './components/WidgetBuilder';
+import { WhatsAppSettings } from './components/WhatsAppSettings';
 import { SignInComponent } from './src/components/SignInComponent';
 import { OnboardingRouter } from './src/components/onboarding';
 import { useToast } from './src/providers/ToastProvider';
@@ -82,7 +83,7 @@ const App: React.FC = () => {
   const { isSignedIn, isLoaded, orgId } = useAuth();
 
   const [showLanding, setShowLanding] = useState(!isSignedIn);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'bookings' | 'drivers' | 'services' | 'widget_builder'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'bookings' | 'drivers' | 'services' | 'widget_builder' | 'whatsapp'>('dashboard');
 
   // Check if user needs onboarding (runs when signed in, even without org)
   const onboardingStatus = useQuery(
@@ -613,7 +614,7 @@ const App: React.FC = () => {
                     <span className={`text-lg font-bold tracking-tight ${booking.status === 'CANCELLED' ? 'text-text-tertiary line-through' : 'text-text-primary'}`}>
                       {booking.customerName}
                     </span>
-                    <div className="flex gap-1 items-center">
+                    <div className="flex gap-1 items-center flex-wrap">
                       <span className="text-[10px] font-bold bg-background-subtle px-2 py-1 rounded-md text-text-tertiary uppercase">{booking.passengers} pax</span>
                       {booking.paymentStatus === PaymentStatus.PAID && <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-md font-bold border border-emerald-200 dark:border-emerald-800">PAID</span>}
                       {booking.paymentStatus === PaymentStatus.INVOICED && <span className="text-[10px] bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400 px-2 py-1 rounded-md font-bold border border-brand-200 dark:border-brand-800">XERO</span>}
@@ -629,6 +630,22 @@ const App: React.FC = () => {
                           Invoice
                         </button>
                       )}
+                      {/* WhatsApp Status Indicators */}
+                      {booking.whatsappCustomerNotified && (
+                        <span className="text-[10px] bg-green-50 dark:bg-green-950 text-green-600 dark:text-green-400 px-2 py-1 rounded-md font-bold border border-green-200 dark:border-green-800 flex items-center gap-1">
+                          <MessageSquare className="w-3 h-3" /> Customer
+                        </span>
+                      )}
+                      {booking.whatsappDriverNotified && (
+                        <span className={`text-[10px] px-2 py-1 rounded-md font-bold border flex items-center gap-1 ${
+                          booking.whatsappDriverAccepted
+                            ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+                            : 'bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+                        }`}>
+                          <MessageSquare className="w-3 h-3" />
+                          {booking.whatsappDriverAccepted ? 'Driver Confirmed' : 'Driver Pending'}
+                        </span>
+                      )
                     </div>
                   </div>
                   {isCancellable && (
@@ -868,6 +885,7 @@ const App: React.FC = () => {
           <SidebarItem icon={CalendarPlus} label="Dispatch Board" active={currentView === 'bookings'} onClick={() => setCurrentView('bookings')} />
           <SidebarItem icon={Users} label="Drivers" active={currentView === 'drivers'} onClick={() => setCurrentView('drivers')} />
           <SidebarItem icon={ShoppingBag} label="Concierge" active={currentView === 'services'} onClick={() => setCurrentView('services')} />
+          <SidebarItem icon={MessageSquare} label="WhatsApp" active={currentView === 'whatsapp'} onClick={() => setCurrentView('whatsapp')} />
         </nav>
 
         <div className="p-6 border-t border-border">
@@ -930,6 +948,7 @@ const App: React.FC = () => {
         {currentView === 'services' && renderServicesList()}
         {currentView === 'drivers' && renderDriversList()}
         {currentView === 'widget_builder' && <WidgetBuilder />}
+        {currentView === 'whatsapp' && <WhatsAppSettings />}
       </main>
 
       {/* Floating Action Button (Mobile & Desktop) */}
@@ -946,7 +965,7 @@ const App: React.FC = () => {
         className={`fixed bottom-24 md:bottom-10 right-6 md:right-10 w-16 h-16 text-white rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 z-30 ${currentView === 'services' ? 'bg-accent-500 hover:bg-accent-600 shadow-glow shadow-accent-500/40' :
           currentView === 'drivers' ? 'bg-slate-900 hover:bg-slate-800 shadow-glow shadow-slate-900/40' :
             'bg-brand-600 hover:bg-brand-700 shadow-glow shadow-brand-500/40'
-          } ${currentView === 'widget_builder' ? 'hidden' : ''}`}
+          } ${currentView === 'widget_builder' || currentView === 'whatsapp' ? 'hidden' : ''}`}
       >
         <Plus className="w-8 h-8" />
       </button>

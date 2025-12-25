@@ -1,8 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, User, Sparkles, MessageCircle, Send, MapPin, Check } from 'lucide-react';
+import { X, User, Sparkles, MessageCircle, Send, MapPin, Check, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useAction, useQuery } from 'convex/react';
+import { api } from '../convex/_generated/api';
 import { Booking, Driver, BookingStatus, AiDriverSuggestion } from '../types';
 import { suggestDriver, generateWhatsAppMessage } from '../services/geminiService';
+import { Id } from '../convex/_generated/dataModel';
 
 interface DispatchModalProps {
   booking: Booking | null;
@@ -18,6 +21,13 @@ export const DispatchModal: React.FC<DispatchModalProps> = ({ booking, drivers, 
   const [generatedMessage, setGeneratedMessage] = useState<string>('');
   const [isLoadingMessage, setIsLoadingMessage] = useState(false);
   const [sendWhatsApp, setSendWhatsApp] = useState(true);
+  const [isDispatching, setIsDispatching] = useState(false);
+  const [dispatchResult, setDispatchResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  // WhatsApp integration
+  const whatsappConfig = useQuery(api.whatsapp.config.getMyConfig);
+  const assignWithNotification = useAction(api.whatsapp.bookingActions.assignDriverWithNotification);
+  const isWhatsAppEnabled = whatsappConfig?.enabled ?? false;
 
   useEffect(() => {
     if (booking?.driverId) {
@@ -27,8 +37,9 @@ export const DispatchModal: React.FC<DispatchModalProps> = ({ booking, drivers, 
     }
     setAiSuggestion(null);
     setGeneratedMessage('');
-    setSendWhatsApp(true);
-  }, [booking]);
+    setSendWhatsApp(isWhatsAppEnabled);
+    setDispatchResult(null);
+  }, [booking, isWhatsAppEnabled]);
 
   if (!booking) return null;
 
@@ -58,18 +69,60 @@ export const DispatchModal: React.FC<DispatchModalProps> = ({ booking, drivers, 
     handleGenerateMessage(id);
   };
 
-  const handleDispatch = () => {
-    if (!selectedDriverId) return;
-    onAssign(booking.id, selectedDriverId);
-    
-    if (sendWhatsApp) {
-      const driver = drivers.find(d => d.id === selectedDriverId);
-      if (driver) {
-          const url = `https://wa.me/${driver.phone.replace(/\+/g, '')}?text=${encodeURIComponent(generatedMessage)}`;
-          window.open(url, '_blank');
+  const handleDispatch = async () => {
+    if (!selectedDriverId || !booking) return;
+
+    setIsDispatching(true);
+    setDispatchResult(null);
+
+    try {
+      if (sendWhatsApp && isWhatsAppEnabled) {
+        // Use Twilio API for WhatsApp dispatch
+        const result = await assignWithNotification({
+          bookingId: booking.id as Id<"bookings">,
+          driverId: selectedDriverId as Id<"drivers">,
+          sendWhatsApp: true,
+        });
+
+        if (result.success) {
+          setDispatchResult({
+            success: true,
+            message: result.driverNotified
+              ? 'Driver assigned and notified via WhatsApp!'
+              : 'Driver assigned (WhatsApp notification pending)',
+          });
+          // Close after a short delay to show success message
+          setTimeout(() => {
+            onClose();
+          }, 1500);
+        } else {
+          setDispatchResult({
+            success: false,
+            message: result.error || 'Failed to dispatch',
+          });
+        }
+      } else {
+        // Fallback to original behavior (manual assignment)
+        onAssign(booking.id, selectedDriverId);
+
+        // If WhatsApp is not configured but user wants to send, open wa.me link
+        if (sendWhatsApp && !isWhatsAppEnabled) {
+          const driver = drivers.find(d => d.id === selectedDriverId);
+          if (driver) {
+            const url = `https://wa.me/${driver.phone.replace(/\+/g, '')}?text=${encodeURIComponent(generatedMessage)}`;
+            window.open(url, '_blank');
+          }
+        }
+        onClose();
       }
+    } catch (error) {
+      setDispatchResult({
+        success: false,
+        message: error instanceof Error ? error.message : 'Dispatch failed',
+      });
     }
-    onClose();
+
+    setIsDispatching(false);
   };
 
   return (
@@ -226,30 +279,63 @@ export const DispatchModal: React.FC<DispatchModalProps> = ({ booking, drivers, 
             </div>
 
             <div className="mt-8">
+                {/* WhatsApp Toggle */}
                 <div className="flex items-center gap-3 mb-5 px-2 py-3 bg-white rounded-xl border border-slate-100 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => setSendWhatsApp(!sendWhatsApp)}>
                     <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${sendWhatsApp ? 'bg-brand-600 border-brand-600' : 'border-slate-300'}`}>
                          {sendWhatsApp && <Check className="w-3.5 h-3.5 text-white" />}
                     </div>
                     <label className="text-sm text-slate-700 font-bold cursor-pointer select-none flex-1">
                         Send via WhatsApp
+                        {sendWhatsApp && isWhatsAppEnabled && (
+                            <span className="ml-2 text-xs font-normal text-emerald-600">(Twilio API)</span>
+                        )}
+                        {sendWhatsApp && !isWhatsAppEnabled && (
+                            <span className="ml-2 text-xs font-normal text-amber-600">(Manual link)</span>
+                        )}
                     </label>
-                    <MessageCircle className="w-4 h-4 text-whatsapp" />
+                    <MessageCircle className={`w-4 h-4 ${isWhatsAppEnabled ? 'text-whatsapp' : 'text-slate-400'}`} />
                 </div>
 
+                {/* Dispatch Result */}
+                {dispatchResult && (
+                    <div className={`mb-4 p-3 rounded-xl flex items-center gap-2 text-sm ${
+                        dispatchResult.success
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                            : 'bg-red-50 text-red-700 border border-red-100'
+                    }`}>
+                        {dispatchResult.success ? (
+                            <CheckCircle2 className="w-4 h-4" />
+                        ) : (
+                            <AlertCircle className="w-4 h-4" />
+                        )}
+                        <span className="font-medium">{dispatchResult.message}</span>
+                    </div>
+                )}
+
                 <div className="flex gap-4">
-                    <button 
+                    <button
                         onClick={onClose}
-                        className="flex-1 py-4 px-6 rounded-2xl font-bold text-slate-600 bg-white border-2 border-slate-100 hover:bg-slate-50 hover:border-slate-200 transition-all"
+                        disabled={isDispatching}
+                        className="flex-1 py-4 px-6 rounded-2xl font-bold text-slate-600 bg-white border-2 border-slate-100 hover:bg-slate-50 hover:border-slate-200 transition-all disabled:opacity-50"
                     >
                         Cancel
                     </button>
-                    <button 
+                    <button
                         onClick={handleDispatch}
-                        disabled={!selectedDriverId || (sendWhatsApp && isLoadingMessage)}
+                        disabled={!selectedDriverId || (sendWhatsApp && isLoadingMessage) || isDispatching}
                         className="flex-1 py-4 px-6 rounded-2xl font-bold text-white bg-slate-900 hover:bg-slate-800 flex items-center justify-center gap-2 shadow-xl shadow-slate-900/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform active:scale-[0.98]"
                     >
-                        <Send className="w-4 h-4" />
-                        {sendWhatsApp ? 'Dispatch' : 'Assign Only'}
+                        {isDispatching ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Dispatching...
+                            </>
+                        ) : (
+                            <>
+                                <Send className="w-4 h-4" />
+                                {sendWhatsApp ? 'Dispatch' : 'Assign Only'}
+                            </>
+                        )}
                     </button>
                 </div>
             </div>

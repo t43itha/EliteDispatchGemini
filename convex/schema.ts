@@ -20,6 +20,11 @@ export default defineSchema({
         distance: v.optional(v.string()),
         duration: v.optional(v.string()),
         isReturn: v.optional(v.boolean()),
+        // WhatsApp notification tracking
+        whatsappCustomerNotified: v.optional(v.boolean()),
+        whatsappDriverNotified: v.optional(v.boolean()),
+        whatsappDriverAccepted: v.optional(v.boolean()),
+        whatsappDriverAcceptedAt: v.optional(v.number()),
     }).index("by_org_and_status", ["orgId", "status"]),
 
     drivers: defineTable({
@@ -33,7 +38,11 @@ export default defineSchema({
         rating: v.number(),
         location: v.string(),
         notes: v.optional(v.string()),
-    }).index("by_org", ["orgId"]),
+        // WhatsApp integration
+        whatsappVerified: v.optional(v.boolean()),
+        whatsappOptedIn: v.optional(v.boolean()),
+    }).index("by_org", ["orgId"])
+      .index("by_phone", ["phone"]),
 
     services: defineTable({
         orgId: v.string(), // SaaS: Company ID
@@ -224,4 +233,52 @@ export default defineSchema({
         usedAt: v.optional(v.number()),  // When the state was used (for audit)
     })
         .index("by_state_token", ["stateToken"]),
+
+    // =====================================================
+    // WhatsApp Integration Tables
+    // =====================================================
+
+    // WhatsApp configuration per organization (Twilio credentials)
+    whatsappConfig: defineTable({
+        orgId: v.string(), // Organization clerkOrgId
+        twilioAccountSid: v.string(),
+        twilioAuthToken: v.string(), // Encrypted in production
+        twilioPhoneNumber: v.string(), // WhatsApp Business number (e.g., +14155238886)
+        enabled: v.boolean(),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    }).index("by_org", ["orgId"]),
+
+    // Message log for audit trail & debugging
+    whatsappMessages: defineTable({
+        orgId: v.string(),
+        bookingId: v.optional(v.id("bookings")),
+        driverId: v.optional(v.id("drivers")),
+        direction: v.union(v.literal("outbound"), v.literal("inbound")),
+        recipientPhone: v.string(),
+        messageType: v.string(), // BOOKING_CONFIRM, DRIVER_DISPATCH, DRIVER_ACCEPT, etc.
+        content: v.string(),
+        twilioSid: v.optional(v.string()), // Twilio message SID
+        status: v.string(), // QUEUED, SENT, DELIVERED, READ, FAILED
+        errorMessage: v.optional(v.string()),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_org", ["orgId"])
+        .index("by_booking", ["bookingId"])
+        .index("by_twilio_sid", ["twilioSid"]),
+
+    // Conversation state for driver interactions (state machine)
+    whatsappConversations: defineTable({
+        orgId: v.string(),
+        driverId: v.id("drivers"),
+        phone: v.string(),
+        currentBookingId: v.optional(v.id("bookings")),
+        state: v.string(), // IDLE, AWAITING_ACCEPT, AWAITING_START, IN_PROGRESS
+        lastMessageAt: v.number(),
+        expiresAt: v.optional(v.number()), // 24hr WhatsApp session window
+    })
+        .index("by_phone", ["phone"])
+        .index("by_driver", ["driverId"])
+        .index("by_org", ["orgId"]),
 });
