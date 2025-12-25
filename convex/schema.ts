@@ -11,12 +11,12 @@ export default defineSchema({
         dropoffLocation: v.string(),
         pickupTime: v.string(), // ISO string
         passengers: v.number(),
-        price: v.number(),
+        price: v.number(), // Price in smallest currency unit (pence for GBP)
         status: v.string(), // BookingStatus
         driverId: v.optional(v.id("drivers")), // Reference to drivers table
         notes: v.optional(v.string()),
         vehicleClass: v.optional(v.string()),
-        paymentStatus: v.optional(v.string()),
+        paymentStatus: v.optional(v.string()), // PENDING | PROCESSING | PAID | FAILED | REFUNDED | PARTIALLY_REFUNDED
         distance: v.optional(v.string()),
         duration: v.optional(v.string()),
         isReturn: v.optional(v.boolean()),
@@ -25,7 +25,12 @@ export default defineSchema({
         whatsappDriverNotified: v.optional(v.boolean()),
         whatsappDriverAccepted: v.optional(v.boolean()),
         whatsappDriverAcceptedAt: v.optional(v.number()),
-    }).index("by_org_and_status", ["orgId", "status"]),
+        // Enhanced payment tracking
+        stripeCheckoutSessionId: v.optional(v.string()), // cs_xxx for widget checkouts
+        priceValidated: v.optional(v.boolean()), // True if price was server-validated
+        currency: v.optional(v.string()), // Currency code (e.g., 'gbp', 'usd')
+    }).index("by_org_and_status", ["orgId", "status"])
+      .index("by_checkout_session", ["stripeCheckoutSessionId"]),
 
     drivers: defineTable({
         orgId: v.string(), // SaaS: Company ID
@@ -108,83 +113,124 @@ export default defineSchema({
         })),
         // Xero integration - OAuth tokens and connection info
         xeroConnection: v.optional(v.object({
-            tenantId: v.string(),           // Xero organization ID
-            tenantName: v.string(),          // Xero organization name
-            accessToken: v.string(),         // Access token (encrypted at rest by Convex)
-            refreshToken: v.string(),        // Refresh token
-            expiresAt: v.number(),          // Token expiry timestamp (ms)
-            scope: v.string(),              // OAuth scopes granted
-            connectedAt: v.number(),        // Connection timestamp
-            connectedBy: v.string(),        // User ID who connected
+            tenantId: v.string(),
+            tenantName: v.string(),
+            accessToken: v.string(),
+            refreshToken: v.string(),
+            expiresAt: v.number(),
+            scope: v.string(),
+            connectedAt: v.number(),
+            connectedBy: v.string(),
         })),
+        // Stripe Connect integration
+        stripeAccountId: v.optional(v.string()),
+        stripeOnboardingComplete: v.optional(v.boolean()),
     }).index("by_clerk_org_id", ["clerkOrgId"]),
 
     // Xero Invoices - tracks invoices created in Xero
     invoices: defineTable({
-        orgId: v.string(),                  // Multi-tenant isolation
-
-        // Xero reference
-        xeroInvoiceId: v.string(),          // Xero invoice ID
-        xeroInvoiceNumber: v.string(),      // Invoice number from Xero
-
-        // Invoice status
-        status: v.string(),                 // DRAFT, SUBMITTED, AUTHORISED, PAID, VOIDED
-
-        // Contact info (from Xero)
-        xeroContactId: v.string(),          // Xero contact ID
-        contactName: v.string(),            // Contact name (cached)
-
-        // Financial data
-        subtotal: v.number(),               // Subtotal before tax
-        totalTax: v.number(),               // Total VAT amount
-        total: v.number(),                  // Total amount
-        amountDue: v.number(),              // Amount due
-        amountPaid: v.number(),             // Amount paid
-        currencyCode: v.string(),           // GBP, USD, etc.
-
-        // Line items (stored for reference)
+        orgId: v.string(),
+        xeroInvoiceId: v.string(),
+        xeroInvoiceNumber: v.string(),
+        status: v.string(),
+        xeroContactId: v.string(),
+        contactName: v.string(),
+        subtotal: v.number(),
+        totalTax: v.number(),
+        total: v.number(),
+        amountDue: v.number(),
+        amountPaid: v.number(),
+        currencyCode: v.string(),
         lineItems: v.array(v.object({
             description: v.string(),
             quantity: v.number(),
             unitAmount: v.number(),
-            taxType: v.string(),            // OUTPUT2 (20% VAT) or NONE
+            taxType: v.string(),
             lineAmount: v.number(),
-            bookingId: v.optional(v.id("bookings")), // Link to booking if applicable
+            bookingId: v.optional(v.id("bookings")),
         })),
-
-        // Linked bookings
-        bookingIds: v.array(v.id("bookings")), // Bookings included in this invoice
-
-        // Dates
-        invoiceDate: v.string(),            // Invoice date (ISO string)
-        dueDate: v.string(),                // Due date (ISO string)
-
-        // Audit
+        bookingIds: v.array(v.id("bookings")),
+        invoiceDate: v.string(),
+        dueDate: v.string(),
         createdAt: v.number(),
-        createdBy: v.string(),              // User ID who created
+        createdBy: v.string(),
         updatedAt: v.number(),
-
-        // Xero URL for direct access
         xeroUrl: v.optional(v.string()),
     })
         .index("by_org", ["orgId"])
         .index("by_xero_invoice_id", ["xeroInvoiceId"])
         .index("by_status", ["orgId", "status"]),
 
-    // Xero Contacts cache - for quick contact lookup without API calls
+    // Xero Contacts cache
     xeroContacts: defineTable({
         orgId: v.string(),
-        xeroContactId: v.string(),          // Xero contact ID
+        xeroContactId: v.string(),
         name: v.string(),
         email: v.optional(v.string()),
         phone: v.optional(v.string()),
         accountNumber: v.optional(v.string()),
-        isCustomer: v.boolean(),            // Is this a customer (vs supplier)
-        cachedAt: v.number(),               // When this was cached
+        isCustomer: v.boolean(),
+        cachedAt: v.number(),
     })
         .index("by_org", ["orgId"])
         .index("by_xero_contact_id", ["orgId", "xeroContactId"])
         .index("by_name", ["orgId", "name"]),
+
+    // Stripe Connect accounts
+    stripeAccounts: defineTable({
+        orgId: v.string(),
+        stripeAccountId: v.string(),
+        accountStatus: v.string(),
+        chargesEnabled: v.boolean(),
+        payoutsEnabled: v.boolean(),
+        detailsSubmitted: v.boolean(),
+        currentlyDue: v.optional(v.array(v.string())),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    }).index("by_org", ["orgId"])
+      .index("by_stripe_account", ["stripeAccountId"]),
+
+    // Payment records
+    payments: defineTable({
+        orgId: v.string(),
+        bookingId: v.id("bookings"),
+        stripePaymentIntentId: v.optional(v.string()),
+        stripeCheckoutSessionId: v.optional(v.string()),
+        amount: v.number(),
+        currency: v.string(),
+        status: v.string(),
+        paymentMethod: v.optional(v.string()),
+        customerEmail: v.optional(v.string()),
+        source: v.string(),
+        failureCode: v.optional(v.string()),
+        failureMessage: v.optional(v.string()),
+        refundedAmount: v.optional(v.number()),
+        metadata: v.optional(v.object({
+            customerName: v.string(),
+            customerPhone: v.string(),
+        })),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    }).index("by_booking", ["bookingId"])
+      .index("by_org", ["orgId"])
+      .index("by_payment_intent", ["stripePaymentIntentId"])
+      .index("by_checkout_session", ["stripeCheckoutSessionId"]),
+
+    // Payment links
+    paymentLinks: defineTable({
+        orgId: v.string(),
+        bookingId: v.id("bookings"),
+        stripePaymentLinkId: v.string(),
+        url: v.string(),
+        amount: v.number(),
+        currency: v.string(),
+        active: v.boolean(),
+        expiresAt: v.optional(v.number()),
+        createdBy: v.string(),
+        createdAt: v.number(),
+    }).index("by_booking", ["bookingId"])
+      .index("by_org", ["orgId"])
+      .index("by_stripe_link", ["stripePaymentLinkId"]),
 
     // Users - links Clerk users to orgs with roles
     users: defineTable({

@@ -1,3 +1,12 @@
+/**
+ * HTTP Routes for EliteDispatch
+ *
+ * Handles incoming HTTP requests including:
+ * - Xero OAuth callbacks
+ * - WhatsApp/Twilio webhooks
+ * - Stripe webhooks
+ */
+
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal, api } from "./_generated/api";
@@ -12,13 +21,6 @@ const http = httpRouter();
 /**
  * Xero OAuth2 callback handler
  * Receives authorization code from Xero after user approves connection
- *
- * Flow:
- * 1. Xero redirects to this endpoint with ?code=...&state=<secure_token>
- * 2. Validate state token (CSRF protection)
- * 3. Exchange the code for tokens
- * 4. Store tokens in organization record
- * 5. Redirect user back to app
  */
 http.route({
     path: "/xero/oauth/callback",
@@ -26,13 +28,11 @@ http.route({
     handler: httpAction(async (ctx, request) => {
         const url = new URL(request.url);
         const code = url.searchParams.get("code");
-        const stateToken = url.searchParams.get("state"); // Secure random token
+        const stateToken = url.searchParams.get("state");
         const error = url.searchParams.get("error");
 
-        // Get frontend URL from environment or default
         const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
 
-        // Handle OAuth errors
         if (error) {
             const errorDescription = url.searchParams.get("error_description") || "Unknown error";
             console.error("Xero OAuth error:", error, errorDescription);
@@ -44,7 +44,6 @@ http.route({
             });
         }
 
-        // Validate required parameters
         if (!code || !stateToken) {
             return new Response(null, {
                 status: 302,
@@ -55,7 +54,6 @@ http.route({
         }
 
         try {
-            // Validate the state token (CSRF protection)
             const stateInfo = await ctx.runQuery(internal.xero.oauth.validateOAuthState, {
                 stateToken,
             });
@@ -70,29 +68,24 @@ http.route({
                 });
             }
 
-            // Mark state as used to prevent replay attacks
             await ctx.runMutation(internal.xero.oauth.markOAuthStateUsed, {
                 stateId: stateInfo.stateId,
             });
 
-            // Exchange authorization code for tokens
             const tokenResponse = await exchangeCodeForTokens(code);
 
             if (!tokenResponse.success) {
                 throw new Error(tokenResponse.error || "Token exchange failed");
             }
 
-            // Get Xero tenant info (organization info)
             const tenantInfo = await getXeroTenants(tokenResponse.accessToken!);
 
             if (!tenantInfo.success || tenantInfo.tenants.length === 0) {
                 throw new Error("No Xero organizations found. Please ensure you have access to at least one organization.");
             }
 
-            // Use the first tenant (most users have one)
             const tenant = tenantInfo.tenants[0];
 
-            // Store tokens in database via internal mutation (using validated orgId from state)
             await ctx.runMutation(internal.xero.oauth.storeXeroConnection, {
                 orgId: stateInfo.orgId,
                 tenantId: tenant.tenantId,
@@ -104,7 +97,6 @@ http.route({
                 connectedBy: stateInfo.userId,
             });
 
-            // Redirect to success page
             return new Response(null, {
                 status: 302,
                 headers: {
@@ -124,9 +116,6 @@ http.route({
     }),
 });
 
-/**
- * Exchange authorization code for access/refresh tokens
- */
 async function exchangeCodeForTokens(code: string): Promise<{
     success: boolean;
     accessToken?: string;
@@ -178,9 +167,6 @@ async function exchangeCodeForTokens(code: string): Promise<{
     }
 }
 
-/**
- * Get list of Xero tenants (organizations) the user has access to
- */
 async function getXeroTenants(accessToken: string): Promise<{
     success: boolean;
     tenants: Array<{ tenantId: string; tenantName: string; tenantType: string }>;
@@ -220,38 +206,30 @@ async function getXeroTenants(accessToken: string): Promise<{
 
 /**
  * Webhook endpoint for incoming WhatsApp messages from drivers
- * URL: POST /whatsapp/webhook/incoming
- *
- * Configure in Twilio Console:
- * When a message comes in: https://your-deployment.convex.site/whatsapp/webhook/incoming
  */
 http.route({
     path: "/whatsapp/webhook/incoming",
     method: "POST",
     handler: httpAction(async (ctx, request) => {
         try {
-            // Parse form data from Twilio
             const formData = await request.formData();
             const params: Record<string, string> = {};
             formData.forEach((value, key) => {
                 params[key] = value.toString();
             });
 
-            // Extract key fields
             const from = params["From"]?.replace("whatsapp:", "") || "";
             const body = params["Body"] || "";
             const messageSid = params["MessageSid"] || "";
 
             console.log(`Incoming WhatsApp message from ${from}: ${body}`);
 
-            // Process the incoming message through the state machine
             await ctx.runAction(api.whatsapp.stateMachine.processIncomingMessage, {
                 phone: from,
                 messageBody: body,
                 twilioSid: messageSid,
             });
 
-            // Return empty TwiML response
             return new Response(
                 `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
                 {
@@ -270,11 +248,7 @@ http.route({
 });
 
 /**
- * Webhook endpoint for message status callbacks
- * URL: POST /whatsapp/webhook/status
- *
- * Configure in Twilio Console:
- * Status callback URL: https://your-deployment.convex.site/whatsapp/webhook/status
+ * Webhook endpoint for WhatsApp message status callbacks
  */
 http.route({
     path: "/whatsapp/webhook/status",
@@ -294,7 +268,6 @@ http.route({
 
             console.log(`Message ${messageSid} status: ${messageStatus}`);
 
-            // Map Twilio status to our status
             let status = MessageStatus.QUEUED;
             switch (messageStatus.toLowerCase()) {
                 case "queued":
@@ -316,7 +289,6 @@ http.route({
                     break;
             }
 
-            // Update message status in database
             await ctx.runMutation(api.whatsapp.config.updateMessageStatus, {
                 twilioSid: messageSid,
                 status,
@@ -331,10 +303,134 @@ http.route({
     }),
 });
 
+// =====================================================
+// Stripe Webhook Endpoints
+// =====================================================
+
 /**
- * Health check endpoint
- * URL: GET /whatsapp/health
+ * Stripe Webhook Handler
+ *
+ * Events handled:
+ * - checkout.session.completed: Payment successful
+ * - checkout.session.expired: Checkout timed out
+ * - account.updated: Stripe Connect account status changed
+ * - charge.refunded: Refund processed
  */
+http.route({
+    path: "/stripe-webhook",
+    method: "POST",
+    handler: httpAction(async (ctx, request) => {
+        const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+        if (!webhookSecret) {
+            console.error("STRIPE_WEBHOOK_SECRET not configured");
+            return new Response("Webhook secret not configured", { status: 500 });
+        }
+
+        const body = await request.text();
+        const signature = request.headers.get("stripe-signature");
+
+        if (!signature) {
+            console.error("No stripe-signature header");
+            return new Response("No signature", { status: 400 });
+        }
+
+        let event;
+        try {
+            const stripe = await import("stripe");
+            const stripeClient = new stripe.default(process.env.STRIPE_SECRET_KEY!, {
+                apiVersion: "2025-11-17.clover",
+            });
+            event = stripeClient.webhooks.constructEvent(body, signature, webhookSecret);
+        } catch (err: any) {
+            console.error("Webhook signature verification failed:", err.message);
+            return new Response(`Webhook Error: ${err.message}`, { status: 400 });
+        }
+
+        try {
+            switch (event.type) {
+                case "checkout.session.completed": {
+                    const session = event.data.object as any;
+                    await ctx.runMutation(internal.payments.webhooks.handleCheckoutCompleted, {
+                        sessionId: session.id,
+                        paymentIntentId: session.payment_intent || undefined,
+                        paymentStatus: session.payment_status,
+                        customerEmail: session.customer_email || undefined,
+                        metadata: session.metadata || undefined,
+                    });
+                    break;
+                }
+
+                case "checkout.session.expired": {
+                    const session = event.data.object as any;
+                    await ctx.runMutation(internal.payments.webhooks.handleCheckoutExpired, {
+                        sessionId: session.id,
+                    });
+                    break;
+                }
+
+                case "account.updated": {
+                    const account = event.data.object as any;
+                    await ctx.runMutation(internal.payments.webhooks.handleAccountUpdated, {
+                        accountId: account.id,
+                        chargesEnabled: account.charges_enabled ?? false,
+                        payoutsEnabled: account.payouts_enabled ?? false,
+                        detailsSubmitted: account.details_submitted ?? false,
+                        currentlyDue: account.requirements?.currently_due || [],
+                    });
+                    break;
+                }
+
+                case "charge.refunded": {
+                    const charge = event.data.object as any;
+                    if (charge.payment_intent) {
+                        await ctx.runMutation(internal.payments.webhooks.handleRefundCreated, {
+                            paymentIntentId: charge.payment_intent,
+                            refundAmount: charge.amount_refunded,
+                            totalAmount: charge.amount,
+                            refundId: charge.refunds?.data?.[0]?.id || `refund_${Date.now()}`,
+                        });
+                    }
+                    break;
+                }
+
+                default:
+                    console.log(`Unhandled event type: ${event.type}`);
+            }
+
+            return new Response(JSON.stringify({ received: true }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+            });
+        } catch (err: any) {
+            console.error(`Error processing ${event.type}:`, err);
+            return new Response(JSON.stringify({ received: true, error: err.message }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+            });
+        }
+    }),
+});
+
+// =====================================================
+// Health Check Endpoints
+// =====================================================
+
+http.route({
+    path: "/health",
+    method: "GET",
+    handler: httpAction(async () => {
+        return new Response(JSON.stringify({
+            status: "ok",
+            timestamp: new Date().toISOString(),
+            services: ["xero", "whatsapp", "stripe"]
+        }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+        });
+    }),
+});
+
 http.route({
     path: "/whatsapp/health",
     method: "GET",

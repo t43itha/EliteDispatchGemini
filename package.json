@@ -11,6 +11,7 @@
   "dependencies": {
     "@clerk/clerk-react": "^5.57.0",
     "@google/genai": "^1.30.0",
+    "@stripe/stripe-js": "^8.5.3",
     "clsx": "^2.1.1",
     "convex": "^1.29.3",
     "convex-helpers": "^0.1.106",
@@ -19,6 +20,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "recharts": "^3.4.1",
+    "stripe": "^20.0.0",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {

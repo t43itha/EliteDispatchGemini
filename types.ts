@@ -21,8 +21,90 @@ export enum VehicleClass {
 
 export enum PaymentStatus {
   PENDING = 'PENDING',
+  PROCESSING = 'PROCESSING',
   PAID = 'PAID',
-  INVOICED = 'INVOICED'
+  FAILED = 'FAILED',
+  REFUNDED = 'REFUNDED',
+  PARTIALLY_REFUNDED = 'PARTIALLY_REFUNDED',
+  INVOICED = 'INVOICED' // Legacy - for bookings paid via invoice
+}
+
+// Stripe Connect account status
+export enum StripeAccountStatus {
+  PENDING = 'pending',
+  ACTIVE = 'active',
+  RESTRICTED = 'restricted',
+  DISABLED = 'disabled'
+}
+
+// Payment record status (separate from booking payment status)
+export enum PaymentRecordStatus {
+  PENDING = 'pending',
+  PROCESSING = 'processing',
+  SUCCEEDED = 'succeeded',
+  FAILED = 'failed',
+  REFUNDED = 'refunded'
+}
+
+// Stripe Connect account interface
+export interface StripeAccount {
+  id: string;
+  orgId: string;
+  stripeAccountId: string;
+  accountStatus: StripeAccountStatus;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+  detailsSubmitted: boolean;
+  currentlyDue?: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Payment record interface
+export interface Payment {
+  id: string;
+  orgId: string;
+  bookingId: string;
+  stripePaymentIntentId?: string;
+  stripeCheckoutSessionId?: string;
+  amount: number; // In smallest currency unit (pence)
+  currency: string;
+  status: PaymentRecordStatus;
+  paymentMethod?: string;
+  customerEmail?: string;
+  source: 'widget' | 'payment_link' | 'dashboard';
+  failureCode?: string;
+  failureMessage?: string;
+  refundedAmount?: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Payment link interface
+export interface PaymentLink {
+  id: string;
+  orgId: string;
+  bookingId: string;
+  stripePaymentLinkId: string;
+  url: string;
+  amount: number;
+  currency: string;
+  active: boolean;
+  expiresAt?: number;
+  createdBy: string;
+  createdAt: number;
+}
+
+// Price breakdown from server-side validation
+export interface PriceBreakdown {
+  basePrice: number;
+  distancePrice: number;
+  total: number; // In smallest currency unit
+  currency: string;
+  currencySymbol: string;
+  vehicleClass: string;
+  distance: number;
+  distanceUnit: string;
 }
 
 export interface WidgetConfig {
@@ -67,7 +149,7 @@ export interface Booking {
   dropoffLocation: string;
   pickupTime: string; // ISO string
   passengers: number;
-  price: number;
+  price: number; // In smallest currency unit (pence for GBP)
   status: BookingStatus;
   driverId?: string;
   notes?: string;
@@ -81,6 +163,10 @@ export interface Booking {
   whatsappDriverNotified?: boolean;
   whatsappDriverAccepted?: boolean;
   whatsappDriverAcceptedAt?: number;
+  // Payment tracking
+  stripeCheckoutSessionId?: string;
+  priceValidated?: boolean;
+  currency?: string;
 }
 
 export interface ServiceRecord {

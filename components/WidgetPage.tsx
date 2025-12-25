@@ -1,9 +1,9 @@
-import React from 'react';
-import { useQuery, useMutation } from "convex/react";
+import React, { useState } from 'react';
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { BookingWidget } from './BookingWidget';
-import { WidgetConfig, VehicleClass, Booking } from '../types';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { WidgetConfig, VehicleClass, Booking, PaymentStatus } from '../types';
+import { AlertTriangle, Loader2, CheckCircle } from 'lucide-react';
 
 // Convert database config back to WidgetConfig (underscores -> spaces in vehicle keys)
 const configFromDb = (dbConfig: any): WidgetConfig => ({
@@ -56,9 +56,16 @@ const DEFAULT_CONFIG: WidgetConfig = {
 };
 
 export const WidgetPage: React.FC = () => {
-  // Get org ID from URL query param
+  // Get URL params
   const urlParams = new URLSearchParams(window.location.search);
   const orgId = urlParams.get('id');
+  const sessionId = urlParams.get('session_id');
+  const bookingIdParam = urlParams.get('booking_id');
+  const stripeStatus = urlParams.get('stripe');
+
+  // State for showing success after checkout
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
 
   // Fetch config from Convex (public query, no auth needed)
   const publicConfig = useQuery(
@@ -66,12 +73,93 @@ export const WidgetPage: React.FC = () => {
     orgId ? { orgId } : "skip"
   );
 
-  // Public booking creation mutation
+  // Check booking status if returning from Stripe
+  const bookingStatus = useQuery(
+    api.payments.checkout.getBookingStatus,
+    bookingIdParam ? { bookingId: bookingIdParam } : "skip"
+  );
+
+  // Public booking creation mutation (for WhatsApp/non-payment bookings)
   const createBookingMutation = useMutation(api.bookings.createFromWidget);
 
-  // Handle booking creation
+  // Stripe checkout action
+  const createCheckoutSession = useAction(api.payments.checkout.createCheckoutSession);
+
+  // Handle Stripe checkout
+  const handleStripeCheckout = async (bookingData: {
+    customerName: string;
+    customerPhone: string;
+    customerEmail?: string;
+    pickupLocation: string;
+    dropoffLocation: string;
+    pickupTime: string;
+    passengers: number;
+    vehicleClass: string;
+    notes?: string;
+    distance?: string;
+    duration?: string;
+    isReturn?: boolean;
+    price: number;
+  }) => {
+    if (!orgId) return;
+
+    setIsProcessingCheckout(true);
+
+    try {
+      const baseUrl = window.location.origin;
+      const result = await createCheckoutSession({
+        orgId,
+        customerName: bookingData.customerName,
+        customerPhone: bookingData.customerPhone,
+        customerEmail: bookingData.customerEmail,
+        pickupLocation: bookingData.pickupLocation,
+        dropoffLocation: bookingData.dropoffLocation,
+        pickupTime: bookingData.pickupTime,
+        passengers: bookingData.passengers,
+        vehicleClass: bookingData.vehicleClass,
+        notes: bookingData.notes,
+        distance: bookingData.distance,
+        duration: bookingData.duration,
+        isReturn: bookingData.isReturn,
+        clientPrice: bookingData.price,
+        successUrl: `${baseUrl}/widget?id=${orgId}`,
+        cancelUrl: `${baseUrl}/widget?id=${orgId}`,
+      });
+
+      // Redirect to Stripe Checkout
+      if (result.checkoutUrl) {
+        window.location.href = result.checkoutUrl;
+      }
+    } catch (error: any) {
+      console.error("Checkout error:", error);
+      alert(error.message || "Failed to start checkout. Please try again.");
+      setIsProcessingCheckout(false);
+    }
+  };
+
+  // Handle non-Stripe booking creation (WhatsApp)
   const handleCreateBooking = async (booking: Booking) => {
     if (!orgId) return;
+
+    // If it's a Stripe payment, redirect to checkout instead
+    if (booking.paymentStatus === PaymentStatus.PAID) {
+      await handleStripeCheckout({
+        customerName: booking.customerName,
+        customerPhone: booking.customerPhone,
+        customerEmail: booking.customerEmail,
+        pickupLocation: booking.pickupLocation,
+        dropoffLocation: booking.dropoffLocation,
+        pickupTime: booking.pickupTime,
+        passengers: booking.passengers,
+        vehicleClass: booking.vehicleClass || '',
+        notes: booking.notes,
+        distance: booking.distance,
+        duration: booking.duration,
+        isReturn: booking.isReturn,
+        price: booking.price,
+      });
+      return;
+    }
 
     try {
       await createBookingMutation({
@@ -99,6 +187,78 @@ export const WidgetPage: React.FC = () => {
       alert("Failed to create booking. Please try again or contact the service provider.");
     }
   };
+
+  // Show success page if returning from Stripe with paid booking
+  if (sessionId && bookingIdParam && bookingStatus?.paymentStatus === 'PAID') {
+    const formatPrice = (amount: number, currency: string) => {
+      const symbols: Record<string, string> = { gbp: '£', usd: '$', eur: '€' };
+      return `${symbols[currency] || '£'}${(amount / 100).toFixed(2)}`;
+    };
+
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-slate-50 p-4">
+        <div className="text-center p-8 bg-white rounded-3xl shadow-xl max-w-lg w-full">
+          <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="w-10 h-10 text-emerald-600" />
+          </div>
+          <h1 className="text-3xl font-black text-slate-900 mb-2">Booking Confirmed!</h1>
+          <p className="text-slate-500 mb-8">
+            Thank you for your booking with {bookingStatus.companyName}
+          </p>
+
+          <div className="bg-slate-50 rounded-2xl p-6 text-left space-y-4 mb-6">
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pickup</p>
+              <p className="text-slate-900 font-semibold">{bookingStatus.pickupLocation}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Destination</p>
+              <p className="text-slate-900 font-semibold">{bookingStatus.dropoffLocation}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Date & Time</p>
+                <p className="text-slate-900 font-semibold">
+                  {new Date(bookingStatus.pickupTime).toLocaleDateString('en-GB', {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short',
+                  })} at {new Date(bookingStatus.pickupTime).toLocaleTimeString('en-GB', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Vehicle</p>
+                <p className="text-slate-900 font-semibold">{bookingStatus.vehicleClass}</p>
+              </div>
+            </div>
+            <div className="pt-4 border-t border-slate-200">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-600 font-medium">Total Paid</span>
+                <span className="text-2xl font-black text-emerald-600">
+                  {formatPrice(bookingStatus.price, bookingStatus.currency)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 text-sm text-emerald-800">
+            A confirmation has been sent to {bookingStatus.customerName}.
+            Your driver details will be shared closer to your pickup time.
+          </div>
+
+          <button
+            onClick={() => window.location.href = `/widget?id=${orgId}`}
+            className="mt-6 px-6 py-3 text-slate-600 hover:text-slate-900 font-medium"
+          >
+            Make Another Booking
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Error state - no org ID
   if (!orgId) {

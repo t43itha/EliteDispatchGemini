@@ -59,6 +59,7 @@ import { HeroStat, MiniStat } from './src/components/ui/HeroStat';
 import { AnimatedCounter } from './src/components/ui/AnimatedCounter';
 import { XeroInvoiceModal } from './components/XeroInvoiceModal';
 import { XeroConnectionCard } from './components/XeroConnectionCard';
+import { StripeOnboarding } from './components/payments/StripeOnboarding';
 
 // --- Layout Components ---
 
@@ -83,7 +84,7 @@ const App: React.FC = () => {
   const { isSignedIn, isLoaded, orgId } = useAuth();
 
   const [showLanding, setShowLanding] = useState(!isSignedIn);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'bookings' | 'drivers' | 'services' | 'widget_builder' | 'whatsapp'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'bookings' | 'drivers' | 'services' | 'widget_builder' | 'whatsapp' | 'settings'>('dashboard');
 
   // Check if user needs onboarding (runs when signed in, even without org)
   const onboardingStatus = useQuery(
@@ -886,6 +887,7 @@ const App: React.FC = () => {
           <SidebarItem icon={Users} label="Drivers" active={currentView === 'drivers'} onClick={() => setCurrentView('drivers')} />
           <SidebarItem icon={ShoppingBag} label="Concierge" active={currentView === 'services'} onClick={() => setCurrentView('services')} />
           <SidebarItem icon={MessageSquare} label="WhatsApp" active={currentView === 'whatsapp'} onClick={() => setCurrentView('whatsapp')} />
+          <SidebarItem icon={Settings} label="Settings" active={currentView === 'settings'} onClick={() => setCurrentView('settings')} />
         </nav>
 
         <div className="p-6 border-t border-border">
@@ -949,6 +951,20 @@ const App: React.FC = () => {
         {currentView === 'drivers' && renderDriversList()}
         {currentView === 'widget_builder' && <WidgetBuilder />}
         {currentView === 'whatsapp' && <WhatsAppSettings />}
+        {currentView === 'settings' && (
+          <div className="space-y-8 animate-in fade-in duration-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-3xl font-black tracking-tight text-text-primary">Settings</h2>
+                <p className="text-text-secondary mt-1">Manage your account and payment settings</p>
+              </div>
+            </div>
+            <div className="max-w-2xl">
+              <h3 className="text-lg font-bold text-text-primary mb-4">Payment Settings</h3>
+              <StripeOnboarding />
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Floating Action Button (Mobile & Desktop) */}
@@ -965,7 +981,7 @@ const App: React.FC = () => {
         className={`fixed bottom-24 md:bottom-10 right-6 md:right-10 w-16 h-16 text-white rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 z-30 ${currentView === 'services' ? 'bg-accent-500 hover:bg-accent-600 shadow-glow shadow-accent-500/40' :
           currentView === 'drivers' ? 'bg-slate-900 hover:bg-slate-800 shadow-glow shadow-slate-900/40' :
             'bg-brand-600 hover:bg-brand-700 shadow-glow shadow-brand-500/40'
-          } ${currentView === 'widget_builder' || currentView === 'whatsapp' ? 'hidden' : ''}`}
+          } ${currentView === 'widget_builder' || currentView === 'whatsapp' || currentView === 'settings' ? 'hidden' : ''}`}
       >
         <Plus className="w-8 h-8" />
       </button>
