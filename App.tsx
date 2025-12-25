@@ -47,6 +47,8 @@ import { LandingPage } from './components/LandingPage';
 import { WidgetBuilder } from './components/WidgetBuilder';
 import { SignInComponent } from './src/components/SignInComponent';
 import { OnboardingRouter } from './src/components/onboarding';
+import { XeroInvoiceModal } from './components/XeroInvoiceModal';
+import { XeroConnectionCard } from './components/XeroConnectionCard';
 
 // --- Layout Components ---
 
@@ -101,6 +103,15 @@ const App: React.FC = () => {
 
   const [selectedBookingForDispatch, setSelectedBookingForDispatch] = useState<Booking | null>(null);
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
+
+  // Xero Invoice state
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [selectedBookingIdsForInvoice, setSelectedBookingIdsForInvoice] = useState<string[]>([]);
+
+  const handleOpenInvoiceModal = (bookingIds: string[]) => {
+    setSelectedBookingIdsForInvoice(bookingIds);
+    setIsInvoiceModalOpen(true);
+  };
 
   // Computed Stats
   const stats: DashboardStats = useMemo(() => {
@@ -418,10 +429,22 @@ const App: React.FC = () => {
                     <span className={`text-lg font-bold tracking-tight ${booking.status === 'CANCELLED' ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
                       {booking.customerName}
                     </span>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 items-center">
                       <span className="text-[10px] font-bold bg-slate-100 px-2 py-1 rounded-md text-slate-500 uppercase">{booking.passengers} pax</span>
                       {booking.paymentStatus === PaymentStatus.PAID && <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-1 rounded-md font-bold border border-emerald-100">PAID</span>}
                       {booking.paymentStatus === PaymentStatus.INVOICED && <span className="text-[10px] bg-brand-50 text-brand-600 px-2 py-1 rounded-md font-bold border border-brand-100">XERO</span>}
+                      {booking.status === BookingStatus.COMPLETED && booking.paymentStatus !== PaymentStatus.INVOICED && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenInvoiceModal([booking.id]);
+                          }}
+                          className="text-[10px] bg-[#13B5EA]/10 text-[#13B5EA] hover:bg-[#13B5EA]/20 px-2 py-1 rounded-md font-bold border border-[#13B5EA]/20 transition-colors flex items-center gap-1"
+                        >
+                          <Receipt className="w-3 h-3" />
+                          Invoice
+                        </button>
+                      )}
                     </div>
                   </div>
                   {isCancellable && (
@@ -664,6 +687,11 @@ const App: React.FC = () => {
         </nav>
 
         <div className="p-6 border-t border-slate-50">
+          {/* Xero Connection Status */}
+          <div className="mb-4">
+            <XeroConnectionCard compact />
+          </div>
+
           <button
             onClick={() => setCurrentView('widget_builder')}
             className={`flex items-center gap-2 px-4 py-3 mb-5 text-xs font-bold rounded-2xl w-full justify-center transition-colors border ${currentView === 'widget_builder' ? 'bg-brand-600 text-white border-brand-600 shadow-lg' : 'bg-brand-50 text-brand-700 border-brand-100 hover:bg-brand-100'}`}
@@ -785,6 +813,16 @@ const App: React.FC = () => {
         isOpen={isDriverModalOpen}
         onClose={() => setIsDriverModalOpen(false)}
         onCreate={handleCreateDriver}
+      />
+
+      <XeroInvoiceModal
+        isOpen={isInvoiceModalOpen}
+        onClose={() => {
+          setIsInvoiceModalOpen(false);
+          setSelectedBookingIdsForInvoice([]);
+        }}
+        preSelectedBookingIds={selectedBookingIdsForInvoice}
+        bookings={bookings}
       />
     </div>
   );

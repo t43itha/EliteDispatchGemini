@@ -97,7 +97,85 @@ export default defineSchema({
                 }),
             }),
         })),
+        // Xero integration - OAuth tokens and connection info
+        xeroConnection: v.optional(v.object({
+            tenantId: v.string(),           // Xero organization ID
+            tenantName: v.string(),          // Xero organization name
+            accessToken: v.string(),         // Access token (encrypted at rest by Convex)
+            refreshToken: v.string(),        // Refresh token
+            expiresAt: v.number(),          // Token expiry timestamp (ms)
+            scope: v.string(),              // OAuth scopes granted
+            connectedAt: v.number(),        // Connection timestamp
+            connectedBy: v.string(),        // User ID who connected
+        })),
     }).index("by_clerk_org_id", ["clerkOrgId"]),
+
+    // Xero Invoices - tracks invoices created in Xero
+    invoices: defineTable({
+        orgId: v.string(),                  // Multi-tenant isolation
+
+        // Xero reference
+        xeroInvoiceId: v.string(),          // Xero invoice ID
+        xeroInvoiceNumber: v.string(),      // Invoice number from Xero
+
+        // Invoice status
+        status: v.string(),                 // DRAFT, SUBMITTED, AUTHORISED, PAID, VOIDED
+
+        // Contact info (from Xero)
+        xeroContactId: v.string(),          // Xero contact ID
+        contactName: v.string(),            // Contact name (cached)
+
+        // Financial data
+        subtotal: v.number(),               // Subtotal before tax
+        totalTax: v.number(),               // Total VAT amount
+        total: v.number(),                  // Total amount
+        amountDue: v.number(),              // Amount due
+        amountPaid: v.number(),             // Amount paid
+        currencyCode: v.string(),           // GBP, USD, etc.
+
+        // Line items (stored for reference)
+        lineItems: v.array(v.object({
+            description: v.string(),
+            quantity: v.number(),
+            unitAmount: v.number(),
+            taxType: v.string(),            // OUTPUT2 (20% VAT) or NONE
+            lineAmount: v.number(),
+            bookingId: v.optional(v.id("bookings")), // Link to booking if applicable
+        })),
+
+        // Linked bookings
+        bookingIds: v.array(v.id("bookings")), // Bookings included in this invoice
+
+        // Dates
+        invoiceDate: v.string(),            // Invoice date (ISO string)
+        dueDate: v.string(),                // Due date (ISO string)
+
+        // Audit
+        createdAt: v.number(),
+        createdBy: v.string(),              // User ID who created
+        updatedAt: v.number(),
+
+        // Xero URL for direct access
+        xeroUrl: v.optional(v.string()),
+    })
+        .index("by_org", ["orgId"])
+        .index("by_xero_invoice_id", ["xeroInvoiceId"])
+        .index("by_status", ["orgId", "status"]),
+
+    // Xero Contacts cache - for quick contact lookup without API calls
+    xeroContacts: defineTable({
+        orgId: v.string(),
+        xeroContactId: v.string(),          // Xero contact ID
+        name: v.string(),
+        email: v.optional(v.string()),
+        phone: v.optional(v.string()),
+        accountNumber: v.optional(v.string()),
+        isCustomer: v.boolean(),            // Is this a customer (vs supplier)
+        cachedAt: v.number(),               // When this was cached
+    })
+        .index("by_org", ["orgId"])
+        .index("by_xero_contact_id", ["orgId", "xeroContactId"])
+        .index("by_name", ["orgId", "name"]),
 
     // Users - links Clerk users to orgs with roles
     users: defineTable({
@@ -135,4 +213,15 @@ export default defineSchema({
     })
         .index("by_code", ["code"])
         .index("by_org", ["orgId"]),
+
+    // OAuth States - temporary storage for OAuth state tokens (CSRF protection)
+    oauthStates: defineTable({
+        stateToken: v.string(),          // Random state token
+        orgId: v.string(),               // Organization this flow is for
+        userId: v.string(),              // User who initiated the flow
+        createdAt: v.number(),           // When the state was created
+        expiresAt: v.number(),           // When the state expires (10 min)
+        usedAt: v.optional(v.number()),  // When the state was used (for audit)
+    })
+        .index("by_state_token", ["stateToken"]),
 });
