@@ -9,50 +9,51 @@ import { ConvexClientProvider } from './src/components/ConvexClientProvider';
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { ThemeProvider, ToastProvider } from './src/providers';
 
-const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error("Could not find root element to mount to");
-}
-
-// Visible marker to confirm JS executed (useful for debugging blank deploys)
-rootElement.innerHTML = `<div style="padding:16px;font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif;">Loading…</div>`;
-
-// Simple URL routing
-const pathname = window.location.pathname;
-const isWidgetPage = pathname === '/widget';
-const bookingStatusMatch = pathname.match(/^\/booking\/([^\/]+)\/status$/);
-const isBookingStatusPage = !!bookingStatusMatch;
-const bookingId = bookingStatusMatch?.[1] || '';
-
-console.log("Starting app mount...", { isWidgetPage, isBookingStatusPage, pathname });
-
-// Minimal error boundary so widget failures don't render as a blank page
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: unknown }> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { error: null };
+const mount = () => {
+  const rootElement = document.getElementById('root');
+  if (!rootElement) {
+    throw new Error("Could not find root element to mount to");
   }
-  static getDerivedStateFromError(error: unknown) {
-    return { error };
-  }
-  componentDidCatch(error: unknown) {
-    console.error('ErrorBoundary caught:', error);
-  }
-  render() {
-    if (this.state.error) {
-      return (
-        <div style={{ padding: 16, color: '#b91c1c', fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif' }}>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>Widget error</div>
-          <pre style={{ whiteSpace: 'pre-wrap' }}>{String(this.state.error)}</pre>
-        </div>
-      );
+
+  // Visible marker to confirm JS executed (useful for debugging blank deploys)
+  rootElement.innerHTML = `<div style="padding:16px;font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif;">Loading…</div>`;
+
+  // Simple URL routing
+  const pathname = window.location.pathname;
+  const isWidgetPage = pathname === '/widget';
+  const bookingStatusMatch = pathname.match(/^\/booking\/([^\/]+)\/status$/);
+  const isBookingStatusPage = !!bookingStatusMatch;
+  const bookingId = bookingStatusMatch?.[1] || '';
+
+  console.log("Starting app mount...", { isWidgetPage, isBookingStatusPage, pathname });
+
+  // Minimal error boundary so widget failures don't render as a blank page
+  class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: unknown }> {
+    constructor(props: { children: React.ReactNode }) {
+      super(props);
+      this.state = { error: null };
     }
-    return this.props.children;
+    static getDerivedStateFromError(error: unknown) {
+      return { error };
+    }
+    componentDidCatch(error: unknown) {
+      console.error('ErrorBoundary caught:', error);
+    }
+    render() {
+      if (this.state.error) {
+        return (
+          <div style={{ padding: 16, color: '#b91c1c', fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif' }}>
+            <div style={{ fontWeight: 700, marginBottom: 8 }}>Widget error</div>
+            <pre style={{ whiteSpace: 'pre-wrap' }}>{String(this.state.error)}</pre>
+          </div>
+        );
+      }
+      return this.props.children;
+    }
   }
-}
 
-try {
-  const root = ReactDOM.createRoot(rootElement);
+  try {
+    const root = ReactDOM.createRoot(rootElement);
 
   // Create Convex client for public pages
   const createPublicConvexClient = () => {
@@ -106,7 +107,15 @@ try {
     );
     console.log("App mounted successfully");
   }
-} catch (error) {
-  console.error("Error mounting app:", error);
-  document.body.innerHTML += `<div style="color: red; padding: 20px;">Error mounting app: ${error}</div>`;
+  } catch (error) {
+    console.error("Error mounting app:", error);
+    document.body.innerHTML += `<div style="color: red; padding: 20px;">Error mounting app: ${error}</div>`;
+  }
+};
+
+// Ensure #root exists even if the script is injected in <head>
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', mount);
+} else {
+  mount();
 }
