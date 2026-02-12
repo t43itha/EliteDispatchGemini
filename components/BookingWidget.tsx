@@ -32,9 +32,10 @@ const loadGoogleMapsAPI = (): Promise<void> => {
       return;
     }
 
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    // Vite exposes env vars via import.meta.env (must be prefixed with VITE_)
+    const apiKey = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
-      reject(new Error('Google Maps API key not configured'));
+      reject(new Error('Google Maps API key not configured (set VITE_GOOGLE_MAPS_API_KEY)'));
       return;
     }
 
