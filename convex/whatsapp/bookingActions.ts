@@ -76,13 +76,16 @@ export const createBookingWithNotification = action({
         dropoffLocation: v.string(),
         pickupTime: v.string(),
         passengers: v.number(),
-        price: v.number(),
-        vehicleClass: v.optional(v.string()),
+
+        // Pricing inputs (server-calculated price)
+        vehicleClass: v.string(),
+        distance: v.number(),
+
+        // Optional metadata
         notes: v.optional(v.string()),
-        distance: v.optional(v.string()),
         duration: v.optional(v.string()),
         isReturn: v.optional(v.boolean()),
-        paymentStatus: v.optional(v.string()),
+
         sendWhatsApp: v.optional(v.boolean()),
     },
     handler: async (ctx, args) => {
@@ -96,13 +99,13 @@ export const createBookingWithNotification = action({
             dropoffLocation: args.dropoffLocation,
             pickupTime: args.pickupTime,
             passengers: args.passengers,
-            price: args.price,
+
             vehicleClass: args.vehicleClass,
-            notes: args.notes,
             distance: args.distance,
+
+            notes: args.notes,
             duration: args.duration,
             isReturn: args.isReturn,
-            paymentStatus: args.paymentStatus,
         });
 
         // If WhatsApp is enabled, send confirmation to customer

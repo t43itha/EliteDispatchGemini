@@ -155,14 +155,19 @@ export interface Booking {
   notes?: string;
   vehicleClass?: VehicleClass;
   paymentStatus?: PaymentStatus;
-  distance?: string;
+
+  // Widget travel metadata
+  distance?: string;          // human-readable, e.g. "12.3 mi"
+  distanceValue?: number;     // numeric in org widgetConfig.distanceUnit
   duration?: string;
   isReturn?: boolean;
+
   // WhatsApp notification tracking
   whatsappCustomerNotified?: boolean;
   whatsappDriverNotified?: boolean;
   whatsappDriverAccepted?: boolean;
   whatsappDriverAcceptedAt?: number;
+
   // Payment tracking
   stripeCheckoutSessionId?: string;
   priceValidated?: boolean;

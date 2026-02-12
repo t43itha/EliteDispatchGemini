@@ -390,6 +390,7 @@ export const BookingWidget: React.FC<BookingWidgetProps> = ({
       vehicleClass: selectedVehicle,
       paymentStatus: method === 'stripe' ? PaymentStatus.PAID : method === 'invoice' ? PaymentStatus.INVOICED : PaymentStatus.PENDING,
       distance: quote.distanceText,
+      distanceValue: quote.distanceVal,
       duration: quote.duration,
       isReturn: isReturn,
       notes: `${formData.notes} ${method === 'whatsapp' ? '[Booked via WhatsApp]' : ''} ${method === 'invoice' ? '[Xero Invoice Drafted]' : ''}`

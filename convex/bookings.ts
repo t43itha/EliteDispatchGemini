@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireAuth, getAuthOrNull } from "./lib/auth";
+import { api } from "./_generated/api";
 
 export const list = query({
     args: {},
@@ -121,26 +122,33 @@ export const createFromWidget = mutation({
         dropoffLocation: v.string(),
         pickupTime: v.string(),
         passengers: v.number(),
-        price: v.number(),
-        vehicleClass: v.optional(v.string()),
+
+        // Pricing inputs (server-calculated price)
+        vehicleClass: v.string(),
+        distance: v.number(), // Distance in org widget config unit
+
+        // Display-only / non-authoritative fields
         notes: v.optional(v.string()),
-        distance: v.optional(v.string()),
         duration: v.optional(v.string()),
         isReturn: v.optional(v.boolean()),
-        paymentStatus: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         // Verify the organization exists (no auth required)
         const org = await ctx.db
             .query("organizations")
-            .withIndex("by_clerk_org_id", (q) =>
-                q.eq("clerkOrgId", args.orgId)
-            )
+            .withIndex("by_clerk_org_id", (q) => q.eq("clerkOrgId", args.orgId))
             .first();
 
         if (!org) {
             throw new Error("Organization not found");
         }
+
+        // Calculate price server-side (do NOT trust client-provided prices)
+        const price = await ctx.runQuery(api.payments.pricing.calculatePrice, {
+            orgId: args.orgId,
+            vehicleClass: args.vehicleClass,
+            distance: args.distance,
+        });
 
         // Create the booking
         return await ctx.db.insert("bookings", {
@@ -152,14 +160,22 @@ export const createFromWidget = mutation({
             dropoffLocation: args.dropoffLocation,
             pickupTime: args.pickupTime,
             passengers: args.passengers,
-            price: args.price,
+
+            // Authoritative pricing fields
+            price: price.total,
+            currency: price.currency,
+            priceValidated: true,
+
             status: "PENDING",
+            paymentStatus: "PENDING",
+
             vehicleClass: args.vehicleClass,
             notes: args.notes,
-            distance: args.distance,
+
+            // Optional informational fields
+            distance: `${args.distance} ${price.distanceUnit}`,
             duration: args.duration,
             isReturn: args.isReturn,
-            paymentStatus: args.paymentStatus || "PENDING",
         });
     },
 });

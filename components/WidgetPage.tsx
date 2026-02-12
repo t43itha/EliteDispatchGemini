@@ -162,6 +162,11 @@ export const WidgetPage: React.FC = () => {
     }
 
     try {
+      const distanceValue = booking.distanceValue;
+      if (distanceValue === undefined || distanceValue === null || Number.isNaN(distanceValue)) {
+        throw new Error("Distance is missing—please select pickup/dropoff so we can calculate a route.");
+      }
+
       await createBookingMutation({
         orgId,
         customerName: booking.customerName,
@@ -171,13 +176,13 @@ export const WidgetPage: React.FC = () => {
         dropoffLocation: booking.dropoffLocation,
         pickupTime: booking.pickupTime,
         passengers: booking.passengers,
-        price: booking.price,
-        vehicleClass: booking.vehicleClass,
+
+        vehicleClass: booking.vehicleClass || '',
+        distance: distanceValue,
+
         notes: booking.notes,
-        distance: booking.distance,
         duration: booking.duration,
         isReturn: booking.isReturn,
-        paymentStatus: booking.paymentStatus,
       });
 
       // Show success message (the widget itself handles success UI)
