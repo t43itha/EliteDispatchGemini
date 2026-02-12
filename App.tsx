@@ -646,7 +646,7 @@ const App: React.FC = () => {
                           <MessageSquare className="w-3 h-3" />
                           {booking.whatsappDriverAccepted ? 'Driver Confirmed' : 'Driver Pending'}
                         </span>
-                      )
+                      )}
                     </div>
                   </div>
                   {isCancellable && (
